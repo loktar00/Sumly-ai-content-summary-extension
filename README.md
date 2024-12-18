@@ -109,6 +109,7 @@ This project consists of two main components:
 
 ## **Project Structure**
 
+```
 youtube-transcript-fetcher/
 │
 ├── server/
@@ -124,7 +125,7 @@ youtube-transcript-fetcher/
 │   └── icons/                 # Extension icons
 │
 └── README.md                  # Project documentation
-
+```
 ---
 
 ## **Known Issues**
