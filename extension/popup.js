@@ -9,7 +9,7 @@ document.getElementById("open-options").addEventListener("click", () => {
 async function getApiUrl() {
   return new Promise((resolve) => {
     chrome.storage.sync.get("apiUrl", (data) => {
-      resolve(data.apiUrl || "http://localhost:8892/fetch_transcript"); // Default URL
+      resolve(data.apiUrl || "http://localhost:8892"); // Default URL
     });
   });
 }
@@ -48,13 +48,7 @@ async function processVideosSequentially() {
     }
 
     console.log(`Processing (${currentIndex + 1}/${videos.length}): ${video.title}`);
-    const success = await sendVideoToServer(videoId, video.title);
-
-    if (success) {
-      console.log(`✅ Processed: ${video.title}`);
-    } else {
-      console.error(`❌ Failed to process: ${video.title}`);
-    }
+    void await sendVideoToServer(videoId, video.title);
   }
 
   alert("All videos have been processed!");
@@ -64,7 +58,7 @@ async function processVideosSequentially() {
 // Send video data to the Flask server
 async function sendVideoToServer(videoId, videoTitle) {
   const serverUrl = await getApiUrl(); // Fetch configurable server URL
-  const url = `${serverUrl}?id=${videoId}&title=${encodeURIComponent(videoTitle)}`;
+  const url = `${serverUrl}/fetch_transcript?id=${videoId}&title=${encodeURIComponent(videoTitle)}`;
 
   try {
     const response = await fetch(url, { method: "GET" });
