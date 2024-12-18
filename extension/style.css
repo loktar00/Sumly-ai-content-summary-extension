@@ -1,0 +1,20 @@
+body {
+    font-family: Arial, sans-serif;
+    width: 300px;
+}
+
+h1 {
+    font-size: 18px;
+    text-align: center;
+}
+
+button {
+    display: block;
+    margin: 10px auto;
+    padding: 8px 16px;
+}
+
+a {
+    text-decoration: none;
+    color: blue;
+}

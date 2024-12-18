@@ -1,0 +1,26 @@
+{
+    "manifest_version": 3,
+    "name": "YouTube Notifications Scraper",
+    "version": "1.0",
+    "description": "Extract YouTube video URLs from notifications.",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "scripting"
+    ],
+    "host_permissions": [
+        "http://192.168.1.3:8892/*",
+        "https://www.youtube.com/*"
+    ],
+    "action": {
+      "default_popup": "popup.html",
+      "default_title": "YouTube Transcript Tool"
+    },
+    "options_page": "options.html",
+    "content_scripts": [
+      {
+        "matches": ["https://www.youtube.com/*"],
+        "js": ["content.js"]
+      }
+    ]
+  }
