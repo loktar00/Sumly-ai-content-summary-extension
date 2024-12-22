@@ -1,20 +1,100 @@
+:root {
+    --primary-color: #f72424;
+    --secondary-color: #e4e4e4;
+    --header-text-color: #ffffff;
+    --icon-color: #6c757d;
+    --button-color: #007bff;
+    --button-hover-color: #0056b3;
+    --button-text-color: #ffffff;
+    --border-color: #929292;
+    --secondary-button-color: #28a745;
+    --secondary-button-hover-color: #218838;
+    --border-radius: 4px;
+}
+
 body {
     font-family: Arial, sans-serif;
+    background-color: var(--secondary-color);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 300px;
+}
+
+.container {
     width: 300px;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--primary-color);
+    padding: 10px;
 }
 
 h1 {
     font-size: 18px;
-    text-align: center;
+    margin: 0;
+    color: var(--header-text-color);
 }
 
-button {
+.content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+}
+
+.settings-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    font-size: 16px;
+    color: var(--icon-color);
+}
+
+.btn {
     display: block;
+    width: 70%;
     margin: 10px auto;
-    padding: 8px 16px;
+    padding: 10px 20px;
+    background-color: var(--button-color);
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    color: var(--button-text-color);
+    cursor: pointer;
 }
 
-a {
-    text-decoration: none;
-    color: blue;
+hr {
+    width: 100%;
+    margin: 10px auto;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn:hover {
+    background-color: var(--button-hover-color);
+}
+
+textarea {
+    width: calc(100% - 22px);
+    margin: 15px auto;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    resize: none;
+}
+
+button#copy-to-clipboard {
+    background-color: var(--secondary-button-color);
+}
+
+button#copy-to-clipboard:hover {
+    background-color: var(--secondary-button-hover-color);
 }

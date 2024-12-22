@@ -18,12 +18,9 @@ async function getApiUrl() {
 document.getElementById("fetch-notifications").addEventListener("click", async () => {
   chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     chrome.tabs.sendMessage(tabs[0].id, { action: "fetch_notifications" }, async () => {
-      console.log("Fetching notifications...");
-
       setTimeout(async () => {
         chrome.storage.local.get("videos", async (data) => {
           if (data.videos && data.videos.length > 0) {
-            console.log("Videos fetched successfully.");
             videos = data.videos; // Load videos into the global variable
             currentIndex = 0; // Start processing
             await processVideosSequentially(); // Begin processing videos
@@ -136,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (tabs.length > 0 && tabs[0].url) {
           const url = new URL(tabs[0].url);
           const videoId = url.searchParams.get("v");
-          console.log("Current video ID:", videoId);
+
           resolve(videoId);
         } else {
           resolve(null);

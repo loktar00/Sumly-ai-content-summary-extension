@@ -3,23 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <title>YouTube Transcript Tool</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h3>YouTube Transcript Tool</h3>
-  <button id="open-options">Settings</button>
-  <br/><br/>
-  <!-- Fetch Notification Videos -->
-  <button id="fetch-notifications">Fetch Notification Videos</button>
-  <br/><br/>
+  <div class="container">
+    <header>
+      <h1>YouTube Transcript Tool</h1>
+      <button id="open-options" class="settings-btn">⚙️</button>
+    </header>
+    <div class="content">
+      <button id="fetch-current-transcript" class="btn">Video Transcript</button>
 
-  <!-- Fetch Transcript for Current Video -->
-  <button id="fetch-current-transcript">Get Transcript for Current Video</button>
+      <textarea id="transcript-area" rows="10" cols="50" placeholder="Transcript will appear here..."></textarea>
 
-  <!-- Display Transcript -->
-  <textarea id="transcript-area" rows="10" cols="50" placeholder="Transcript will appear here..."></textarea>
-  <br>
-  <button id="copy-to-clipboard">Copy to Clipboard</button>
-
+      <button id="copy-to-clipboard" class="btn">Copy to Clipboard</button>
+      <hr/>
+      <button id="fetch-notifications" class="btn">Notification Transcripts</button>
+    </div>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>
