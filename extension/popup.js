@@ -1,147 +1,221 @@
-let videos = []; // List of videos to process
-let currentIndex = 0; // Track the current video being processed
+const DEFAULT_API_URL = "http://localhost:8892";
+const DEFAULT_AI_URL = "http://localhost:11434";
+const DEFAULT_AI_MODEL = "mistral";
+const DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant. Please provide concise, unbiased summaries.";
+const NOTIFICATION_DELAY = 3000;
 
-document.getElementById("open-options").addEventListener("click", () => {
-  chrome.runtime.openOptionsPage();
-});
+const state = {
+    videos: [], // List of videos to process
+    currentIndex: 0 // Track the current video being processed
+};
 
-// Fetch the server URL from storage or use a default
-async function getApiUrl() {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get("apiUrl", (data) => {
-      resolve(data.apiUrl || "http://localhost:8892"); // Default URL
-    });
-  });
-}
+const utils = {
+    extractVideoId(url) {
+        const match = url.match(/v=([A-Za-z0-9_-]+)/);
+        return match ? match[1] : null;
+    },
 
-// Button: Fetch all videos in notifications
-document.getElementById("fetch-notifications").addEventListener("click", async () => {
-  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-    chrome.tabs.sendMessage(tabs[0].id, { action: "fetch_notifications" }, async () => {
-      console.log("Fetching notifications...");
+    sanitizePrompt(prompt) {
+        return prompt.replace(/[<>]/g, '').slice(0, 500); // Basic sanitization
+    },
 
-      setTimeout(async () => {
-        chrome.storage.local.get("videos", async (data) => {
-          if (data.videos && data.videos.length > 0) {
-            console.log("Videos fetched successfully.");
-            videos = data.videos; // Load videos into the global variable
-            currentIndex = 0; // Start processing
-            await processVideosSequentially(); // Begin processing videos
-          } else {
-            alert("No videos found to process.");
-          }
-        });
-      }, 3000);
-    });
-  });
-});
+    async getCurrentVideoId() {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs[0]?.url) return null;
 
-// Process videos sequentially and send them to the server
-async function processVideosSequentially() {
-  for (currentIndex = 0; currentIndex < videos.length; currentIndex++) {
-    const video = videos[currentIndex];
-    const videoId = extractVideoId(video.url);
+        const url = new URL(tabs[0].url);
+        return url.searchParams.get("v");
+    },
 
-    if (!videoId) {
-      console.error(`Invalid video URL: ${video.url}`);
-      continue; // Skip to the next video
-    }
-
-    console.log(`Processing (${currentIndex + 1}/${videos.length}): ${video.title}`);
-    void await sendVideoToServer(videoId, video.title);
-  }
-
-  alert("All videos have been processed!");
-  console.log("Processing complete.");
-}
-
-// Send video data to the Flask server
-async function sendVideoToServer(videoId, videoTitle) {
-  const serverUrl = await getApiUrl(); // Fetch configurable server URL
-  const url = `${serverUrl}/fetch_transcript?id=${videoId}&title=${encodeURIComponent(videoTitle)}`;
-
-  try {
-    const response = await fetch(url, { method: "GET" });
-    const result = await response.json();
-
-    if (response.ok) {
-      console.log(`Server Response: ${result.title} - ${result.status}`);
-      return true; // Success
-    } else {
-      console.error(`Error from server: ${result.error || "Unknown error"}`);
-      return false; // Failure
-    }
-  } catch (error) {
-    console.error(`Network error for ${videoTitle}:`, error);
-    return false; // Network failure
-  }
-}
-
-// Utility: Extract video ID from a YouTube URL
-function extractVideoId(url) {
-  const match = url.match(/v=([A-Za-z0-9_-]+)/);
-  return match ? match[1] : null;
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  const fetchButton = document.getElementById("fetch-current-transcript");
-  const copyButton = document.getElementById("copy-to-clipboard");
-  const transcriptArea = document.getElementById("transcript-area");
-
-  // Fetch transcript for the current video
-  fetchButton.addEventListener("click", async () => {
-    const videoId = await getCurrentVideoId();
-
-    if (!videoId) {
-      alert("Could not determine video ID. Please ensure you're on a YouTube video page.");
-      return;
-    }
-
-    transcriptArea.value = "Fetching transcript...";
-    const serverUrl = await getApiUrl(); // Fetch configurable server URL
-    const url = `${serverUrl}/fetch_transcript?id=${videoId}&title=Current+Video&return_only=true`;
-
-    try {
-      const response = await fetch(url);
-      const result = await response.json();
-
-      if (result.status === "success") {
-        transcriptArea.value = result.transcript;
-        console.log("Transcript fetched successfully.");
-      } else {
-        transcriptArea.value = "Transcript not available.";
-        console.error("Failed to fetch transcript:", result.error);
-      }
-    } catch (error) {
-      console.error("Error fetching transcript:", error);
-      transcriptArea.value = "Error fetching transcript.";
-    }
-  });
-
-  // Copy transcript to clipboard
-  copyButton.addEventListener("click", () => {
-    const transcriptArea = document.getElementById("transcript-area");
-    navigator.clipboard.writeText(transcriptArea.value).then(() => {
-      alert("Transcript copied to clipboard!");
-    }).catch(err => {
-      console.error("Failed to copy:", err);
-      alert("Failed to copy text to clipboard.");
-    });
-  });
-
-  // Get the video ID from the currently active YouTube tab
-  async function getCurrentVideoId() {
-    return new Promise((resolve) => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs.length > 0 && tabs[0].url) {
-          const url = new URL(tabs[0].url);
-          const videoId = url.searchParams.get("v");
-          console.log("Current video ID:", videoId);
-          resolve(videoId);
-        } else {
-          resolve(null);
+    async getVideoTitle(videoId) {
+        try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0]?.title) {
+                return tabs[0].title.replace(' - YouTube', '');
+            }
+            return `Video ${videoId}`;
+        } catch {
+            return `Video ${videoId}`;
         }
-      });
-    });
-  }
+    },
+
+    async openPopupWindow(url, options = {}) {
+        const defaultOptions = {
+            width: 800,
+            height: 630,
+            type: 'popup'
+        };
+
+        const windowOptions = { ...defaultOptions, ...options, url };
+        return chrome.windows.create(windowOptions);
+    }
+};
+
+const api = {
+    async getApiUrl() {
+        const { apiUrl } = await chrome.storage.sync.get("apiUrl");
+        return apiUrl || DEFAULT_API_URL;
+    },
+
+    async getAiSettings() {
+        const { aiUrl, aiModel } = await chrome.storage.sync.get(["aiUrl", "aiModel"]);
+        return {
+            url: `${aiUrl || DEFAULT_AI_URL}/api/generate`,
+            model: aiModel || DEFAULT_AI_MODEL
+        };
+    },
+
+    async sendVideoToServer(videoId, videoTitle) {
+        const serverUrl = await this.getApiUrl();
+        const url = `${serverUrl}/fetch_transcript?id=${videoId}&title=${encodeURIComponent(videoTitle)}`;
+
+        try {
+            const response = await fetch(url, { method: "GET" });
+            await response.json();
+            return response.ok || false;
+        } catch (error) {
+            console.error(`Network error for ${videoTitle}:`, error);
+            return false;
+        }
+    }
+};
+
+async function processVideosSequentially() {
+    for (state.currentIndex = 0; state.currentIndex < state.videos.length; state.currentIndex++) {
+        const video = state.videos[state.currentIndex];
+        const videoId = utils.extractVideoId(video.url);
+
+        if (!videoId) {
+            console.error(`Invalid video URL: ${video.url}`);
+            continue;
+        }
+
+        console.log(`Processing (${state.currentIndex + 1}/${state.videos.length}): ${video.title}`);
+        await api.sendVideoToServer(videoId, video.title);
+    }
+
+    alert("All videos have been processed!");
+}
+
+const handlers = {
+    async handleFetchTranscript() {
+        const videoId = await utils.getCurrentVideoId();
+        const transcriptArea = document.getElementById("transcript-area");
+
+        if (!videoId) {
+            alert("Could not determine video ID. Please ensure you're on a YouTube video page.");
+            return;
+        }
+
+        transcriptArea.value = "Fetching transcript...";
+        const serverUrl = await api.getApiUrl();
+        const url = `${serverUrl}/fetch_transcript?id=${videoId}&title=Current+Video&return_only=true`;
+
+        try {
+            const response = await fetch(url);
+            const result = await response.json();
+            transcriptArea.value = result.status === "success" ? result.transcript : "Transcript not available.";
+        } catch (error) {
+            transcriptArea.value = `Error fetching transcript. ${error.message}`;
+        }
+    },
+
+    async handleSummarize() {
+        await handlers.handleFetchTranscript();
+        const transcriptArea = document.getElementById("transcript-area");
+        const transcript = transcriptArea.value.trim();
+
+        if (!transcript) {
+            alert("Please fetch a transcript first!");
+            return;
+        }
+
+        const videoId = await utils.getCurrentVideoId();
+        const videoTitle = await utils.getVideoTitle(videoId);
+
+        await chrome.storage.local.set({
+            currentSummary: null,
+            summaryStatus: 'loading',
+            summaryError: null,
+            currentVideo: {
+                id: videoId,
+                title: videoTitle
+            },
+            initialTranscript: transcript
+        });
+
+        await utils.openPopupWindow('summary.html');
+
+        try {
+            const aiSettings = await api.getAiSettings();
+            const { systemPrompt } = await chrome.storage.sync.get(['systemPrompt']);
+
+            const response = await fetch(aiSettings.url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: aiSettings.model,
+                    prompt: `System: ${utils.sanitizePrompt(systemPrompt || DEFAULT_SYSTEM_PROMPT)}\n\nHuman: Here's a transcript, please summarize it:\n${transcript}\n\nAssistant:`,
+                    stream: false
+                })
+            });
+
+            const result = await response.json();
+            await chrome.storage.local.set({
+                currentSummary: result.response,
+                summaryStatus: 'complete'
+            });
+        } catch (error) {
+            await chrome.storage.local.set({
+                summaryStatus: 'error',
+                summaryError: `Failed to get summary. Please check the AI endpoint in settings. ${error.message}`
+            });
+        }
+    },
+
+    async handleCopyToClipboard() {
+        const transcriptArea = document.getElementById("transcript-area");
+        try {
+            await navigator.clipboard.writeText(transcriptArea.value);
+            alert("Transcript copied to clipboard!");
+        } catch (error) {
+            alert(`Failed to copy text to clipboard. ${error.message}`);
+        }
+    },
+
+    async handleFetchNotifications() {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        chrome.tabs.sendMessage(tabs[0].id, { action: "fetch_notifications" }, async () => {
+            setTimeout(async () => {
+                const { videos } = await chrome.storage.local.get("videos");
+                if (videos?.length) {
+                    state.videos = videos;
+                    state.currentIndex = 0;
+                    await processVideosSequentially();
+                } else {
+                    alert("No videos found to process.");
+                }
+            }, NOTIFICATION_DELAY);
+        });
+    },
+
+    async handleViewSummaries() {
+        await utils.openPopupWindow('summary.html?view=library');
+    },
+
+    async handleOpenSettings() {
+        await utils.openPopupWindow('options.html', {
+            width: 500,  // Smaller width for settings
+            height: 630
+        });
+    }
+};
+// Initialize event listeners
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("open-options").addEventListener("click", handlers.handleOpenSettings);
+    document.getElementById("fetch-current-transcript").addEventListener("click", handlers.handleFetchTranscript);
+    document.getElementById("copy-to-clipboard").addEventListener("click", handlers.handleCopyToClipboard);
+    document.getElementById("summarize-transcript").addEventListener("click", handlers.handleSummarize);
+    document.getElementById("fetch-notifications").addEventListener("click", handlers.handleFetchNotifications);
+    document.getElementById("view-summaries").addEventListener("click", handlers.handleViewSummaries);
 });
