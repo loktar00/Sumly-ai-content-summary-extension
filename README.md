@@ -1,4 +1,5 @@
 # **YouTube Transcript AI Assistant**
+![base](https://github.com/user-attachments/assets/eb1ff30f-7f8a-42cf-8ba7-e7787e244b92)
 
 This project combines a Flask server for YouTube transcript retrieval with an AI-powered browser extension that provides transcript summaries and interactive conversations about video content.
 
@@ -30,6 +31,21 @@ This project combines a Flask server for YouTube transcript retrieval with an AI
 - Adjustable AI settings (model, system prompt)
 - Model selection from available Ollama models
 - Customizable system prompts for different use cases
+
+## ** Screenshots **
+#### **Transcript**
+![first screen](https://github.com/user-attachments/assets/92643aca-63e5-4c22-a5e1-298d71ac0544)
+
+#### **Summary Screen**
+![Summary screen](https://github.com/user-attachments/assets/c79af28a-b583-43fa-bd0d-5beb24ee8d26)
+
+#### **Library View**
+![library screen](https://github.com/user-attachments/assets/f2b49e6b-fb90-49b4-9e24-3682549b5afb)
+
+#### **Settings**
+![settings screen](https://github.com/user-attachments/assets/2f6fdb5a-09ff-4c6b-9704-b3c8b3869b91)
+
+
 
 ---
 
