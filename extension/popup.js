@@ -15,6 +15,10 @@ const utils = {
         return match ? match[1] : null;
     },
 
+    sanitizePrompt(prompt) {
+        return prompt.replace(/[<>]/g, '').slice(0, 500); // Basic sanitization
+    },
+
     async getCurrentVideoId() {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tabs[0]?.url) return null;
@@ -151,7 +155,7 @@ const handlers = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: aiSettings.model,
-                    prompt: `System: ${systemPrompt || DEFAULT_SYSTEM_PROMPT}\n\nHuman: Here's a transcript, please summarize it:\n${transcript}\n\nAssistant:`,
+                    prompt: `System: ${utils.sanitizePrompt(systemPrompt || DEFAULT_SYSTEM_PROMPT)}\n\nHuman: Here's a transcript, please summarize it:\n${transcript}\n\nAssistant:`,
                     stream: false
                 })
             });
