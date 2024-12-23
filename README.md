@@ -1,13 +1,35 @@
-# **YouTube Transcript Fetcher**
+# **YouTube Transcript AI Assistant**
 
-This project consists of two main components:
-1. A **Python Flask Server** that retrieves YouTube video transcripts using the `youtube-transcript-api`.
-2. A **Browser Extension** that interacts with the Flask server to fetch and manage YouTube video transcripts directly from the browser.
+This project combines a Flask server for YouTube transcript retrieval with an AI-powered browser extension that provides transcript summaries and interactive conversations about video content.
 
 ## **Features**
-- Retrieve YouTube transcripts via a Python Flask server.
-- Browser extension to interact with the server and fetch transcripts for videos.
-- Configurable server URL via the extension’s settings.
+
+### **Transcript Management**
+- Fetch transcripts from any YouTube video
+- Batch process transcripts from YouTube notifications
+- Copy transcripts to clipboard
+- Store transcripts locally for future reference
+
+### **AI Integration**
+- Summarize video transcripts using AI
+- Interactive chat interface for transcript discussions
+- Configurable AI models via Ollama
+- Streaming responses for real-time feedback
+- Persistent conversation history
+- Context-aware follow-up questions
+
+### **User Interface**
+- Clean, modern interface for transcript management
+- Library view for accessing past summaries
+- Real-time chat with typing indicators
+- Markdown support for formatted responses
+- Conversation management (view, delete, switch between conversations)
+
+### **Configuration**
+- Configurable server URL
+- Adjustable AI settings (model, system prompt)
+- Model selection from available Ollama models
+- Customizable system prompts for different use cases
 
 ---
 
@@ -16,136 +38,114 @@ This project consists of two main components:
 ### **Prerequisites**
 - Anaconda or Miniconda
 - Python 3.8 or higher
-- Browser supporting extensions (e.g., Chrome, Edge, or Firefox)
-- Node.js and npm (optional, for future development)
-
----
-
-## **1. Setting Up the Flask Server**
+- Browser supporting extensions (Chrome, Edge, or Firefox)
+- [Ollama](https://ollama.ai/) for AI functionality
 
 ### **Installation**
-1. Clone the repository:
-    ```bash
-    git clone https://github.com/your-repo/youtube-transcript-fetcher.git
-    cd youtube-transcript-fetcher/server
-    ```
 
-2. Create a new Anaconda environment:
+#### **1. Server Setup**
+1. Clone and set up the repository:
     ```bash
+    git clone https://github.com/your-repo/youtube-transcript-ai.git
+    cd youtube-transcript-ai/server
     conda create --name yt-transcripts python=3.8 -y
     conda activate yt-transcripts
-    ```
-
-3. Install the required dependencies:
-    ```bash
     pip install -r requirements.txt
     ```
 
-### **Running the Server**
-1. Start the Flask server:
+2. Start the Flask server:
     ```bash
     python app.py
     ```
 
-2. By default, the server will run on `http://localhost:8892`. You can update the port or host in `app.py` if needed.
-
-3. Access logs will be saved in `transcript_server.log`.
-
----
-
-## **2. Setting Up the Browser Extension**
-
-### **Installation**
-1. Navigate to the `extension` directory:
+#### **2. Ollama Setup**
+1. Install Ollama following instructions at [ollama.ai](https://ollama.ai)
+2. Pull your preferred model:
     ```bash
-    cd ../extension
+    ollama pull mistral
     ```
+3. Start the Ollama server (usually runs on port 11434)
 
-2. Open your browser and go to the extensions page:
-    - Chrome: `chrome://extensions/`
-    - Edge: `edge://extensions/`
-    - Firefox: `about:addons`
-
-3. Enable **Developer Mode** (usually a toggle on the extensions page).
-
-4. Click **Load Unpacked** (or **Load Temporary Add-on** for Firefox).
-
-5. Select the `extension` directory from this project.
-
-### **Usage**
-- Once loaded, the extension icon will appear in your browser toolbar.
-- Clicking the icon opens the popup, allowing you to:
-  - Fetch notifications of YouTube videos and process them.
-  - Fetch a transcript for the current video.
-
-- Notifications of youtube videos are all processed and saved in the directory server/transcripts/
----
-
-## **3. Configuring the Extension**
-
-### **Accessing Settings**
-1. Open the extension popup by clicking the icon in the browser toolbar.
-2. Click the **Settings** button (available in the popup).
-3. The settings page allows you to configure:
-   - **Server URL**: The URL of the Flask server. Default: `http://localhost:8892`.
-
-### **Returning to Main Popup**
-- On the settings page, click the **Back to Main** button to return to the popup or follow the instructions to reopen the popup manually.
+#### **3. Browser Extension Setup**
+1. Load the extension in developer mode:
+   - Open `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select the `extension` directory
 
 ---
 
-## **How to Use**
+## **Using the Extension**
 
-### **1. Fetch Transcripts for YouTube Videos**
-- Navigate to a YouTube video.
-- Open the extension popup and click **Fetch Current Transcript**.
-- The transcript will appear in the text area. You can copy it to your clipboard.
+### **Basic Usage**
+1. Click the extension icon on any YouTube video
+2. Use "Get Transcript" to fetch the current video's transcript
+3. Click "Summarize with AI" to generate an AI summary
+4. Interact with the AI through the chat interface
 
-### **2. Batch Process Videos**
-- Fetch all notifications by clicking **Fetch Notifications** in the popup.
-- The extension processes all video links found in notifications, sending them to the server for transcript retrieval.
+### **Library and Conversations**
+- Click the "📚" icon to access your summary library
+- View past conversations and summaries
+- Ask follow-up questions about any saved transcript
+- Delete unwanted conversations
+- Switch between different video summaries
+
+### **Settings Configuration**
+1. Click the "⚙️" icon to open settings
+2. Configure:
+   - Transcript API URL
+   - AI API Base URL (Ollama)
+   - AI Model selection
+   - System prompt customization
 
 ---
 
 ## **Project Structure**
-
 ```
-youtube-transcript-fetcher/
-│
+youtube-transcript-ai/
 ├── server/
-│   ├── app.py                 # Flask server script
+│   ├── app.py                 # Flask server
 │   └── requirements.txt       # Python dependencies
 │
 ├── extension/
-│   ├── manifest.json          # Extension manifest file
-│   ├── popup.html             # Main popup UI
-│   ├── popup.js               # Main popup logic
-│   ├── options.html           # Settings page UI
-│   ├── options.js             # Settings page logic
-│   └── icons/                 # Extension icons
-│
-└── README.md                  # Project documentation
+│   ├── manifest.json          # Extension manifest
+│   ├── popup.html/js          # Main popup interface
+│   ├── summary.html/js        # Summary and chat interface
+│   ├── options.html/js        # Settings interface
+│   ├── markdown.js           # Markdown processor
+│   └── style.css            # Unified styling
 ```
+
 ---
 
-## **Known Issues**
-- **Transcript API Limitations**: The `youtube-transcript-api` library relies on YouTube’s publicly available transcripts. Videos without transcripts will not work.
+## **Technical Details**
+
+### **AI Integration**
+- Uses Ollama for local AI processing
+- Supports streaming responses
+- Maintains conversation context
+- Handles markdown formatting
+
+### **Data Management**
+- Local storage for conversation history
+- Transcript preservation
+- Configurable settings sync
+
+### **UI Features**
+- Real-time response streaming
+- Loading indicators
+- Conversation management
+- Responsive design
 
 ---
 
 ## **Contributing**
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature-name`).
-3. Commit your changes (`git commit -m 'Add feature'`).
-4. Push to the branch (`git push origin feature-name`).
-5. Open a Pull Request.
-
----
+Contributions are welcome! Please read our contributing guidelines and submit pull requests to our repository.
 
 ## **License**
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License.
 
 ---
 
 ## **Support**
-For issues or questions, please open a GitHub issue or contact the repository owner.
+For issues, questions, or contributions, please open a GitHub issue or contact the repository maintainers.
