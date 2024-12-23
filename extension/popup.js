@@ -67,7 +67,7 @@ const api = {
 
         try {
             const response = await fetch(url, { method: "GET" });
-            const result = await response.json();
+            await response.json();
             return response.ok || false;
         } catch (error) {
             console.error(`Network error for ${videoTitle}:`, error);
