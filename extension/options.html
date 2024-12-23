@@ -2,14 +2,42 @@
 <html>
 <head>
     <title>Extension Settings</title>
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <h1>Extension Settings</h1>
-    <label for="apiUrl">API URL:</label>
-    <input type="text" id="apiUrl" placeholder="Enter the API URL here" />
-    <button id="save">Save</button>
-    <p id="status"></p>
+    <header class="summary-header">
+        <h1>Settings</h1>
+    </header>
+    <div class="container">
+        <div class="content">
+            <div class="setting-group">
+                <label for="apiUrl">Transcript API URL:</label>
+                <input type="text" id="apiUrl" placeholder="Enter the API URL here" />
+            </div>
 
+            <div class="setting-group">
+                <label for="aiUrl">AI API Base URL:</label>
+                <input type="text" id="aiUrl" placeholder="Enter the Ollama base URL (e.g., http://localhost:11434)" />
+                <button id="fetch-models" class="btn secondary-btn">Fetch Available Models</button>
+            </div>
+
+            <div class="setting-group">
+                <label for="aiModel">AI Model:</label>
+                <select id="aiModel" disabled>
+                    <option value="">Loading models...</option>
+                </select>
+                <p id="model-status" class="status-text"></p>
+            </div>
+
+            <div class="setting-group">
+                <label for="systemPrompt">System Prompt:</label>
+                <textarea id="systemPrompt" rows="4" placeholder="Enter your default system prompt here...">You are a helpful AI assistant. Please provide concise, unbiased summaries and responses. Focus on the main points and key information.</textarea>
+            </div>
+
+            <button id="save" class="btn">Save</button>
+            <p id="status"></p>
+        </div>
+    </div>
     <script src="options.js"></script>
 </body>
 </html>

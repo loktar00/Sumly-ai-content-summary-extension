@@ -10,17 +10,18 @@
     ],
     "host_permissions": [
         "http://192.168.1.3:8892/*",
-        "https://www.youtube.com/*"
+        "https://www.youtube.com/*",
+        "http://localhost:11434/*"
     ],
     "action": {
       "default_popup": "popup.html",
       "default_title": "YouTube Transcript Tool"
     },
-    "options_page": "options.html",
-    "content_scripts": [
-      {
-        "matches": ["https://www.youtube.com/*"],
-        "js": ["content.js"]
-      }
-    ]
+    "web_accessible_resources": [{
+        "resources": [
+            "options.html",
+            "summary.html"
+        ],
+        "matches": ["<all_urls>"]
+    }]
   }

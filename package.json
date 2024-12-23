@@ -1,0 +1,32 @@
+{
+  "name": "youtube-transcript-fetcher",
+  "version": "1.0.0",
+  "description": "Fetches Youtube Transcripts and allows a user to summarize using local llms",
+  "main": "app.py",
+  "scripts": {
+    "lint": "eslint ./extension"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/loktar00/YouTube-Transcript-Fetcher.git"
+  },
+  "keywords": [
+    "youtube",
+    "llm",
+    "summary",
+    "transcripts",
+    "ai",
+    "ollama"
+  ],
+  "author": "loktar00",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/loktar00/YouTube-Transcript-Fetcher/issues"
+  },
+  "homepage": "https://github.com/loktar00/YouTube-Transcript-Fetcher#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0"
+  }
+}

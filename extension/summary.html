@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Summary</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <header class="summary-header">
+        <h1>AI Summary</h1>
+    </header>
+    <div class="summary-content">
+        <div id="conversation-list" class="conversation-list"></div>
+        <div class="main-content">
+            <div id="chat-container" class="chat-container">
+                <div id="chat-messages" class="chat-messages">
+                    <div id="formatted-summary" class="markdown-body message"></div>
+                </div>
+
+                <div id="chat-loading" class="chat-loading hidden">
+                    <div class="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+                <div class="chat-input-container hidden">
+                    <textarea id="chat-input" rows="3" placeholder="Ask a question about the transcript..."></textarea>
+                    <button id="send-message" class="btn">Send</button>
+                </div>
+            </div>
+            <textarea id="summary-area" rows="15" cols="50" readonly style="display: none;"></textarea>
+        </div>
+    </div>
+    <script src="markdown.js"></script>
+    <script src="summary.js"></script>
+</body>
+</html>
