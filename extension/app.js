@@ -1,3 +1,5 @@
+console.log('Loading app.js...', new Date().toISOString());
+
 const CONSTANTS = {
     API: {
         DEFAULT_API_URL: "http://localhost:8892",
@@ -90,29 +92,23 @@ const utils = {
     parseTranscriptXml(transcriptXml) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(transcriptXml, "text/xml");
-
-        // Create a textarea element for decoding HTML entities
         const decoder = document.createElement('textarea');
 
         return Array.from(xmlDoc.getElementsByTagName('text'))
             .map(node => ({
                 text: node.textContent
                     .trim()
-                    // Decode HTML entities
                     .replace(/&([^;]+);/g, (match) => {
                         decoder.innerHTML = match;
                         return decoder.value;
                     })
-                    // Replace multiple spaces with single space
                     .replace(/\s+/g, ' ')
-                    // Remove any remaining newlines
                     .replace(/\n/g, ' '),
                 start: parseFloat(node.getAttribute('start')),
                 duration: parseFloat(node.getAttribute('dur') || '0')
             }))
             .filter(line => line.text.length > 0)
             .map(line => line.text)
-            // Join with single space instead of newline
             .join(' ');
     }
 };
@@ -147,26 +143,28 @@ const api = {
     },
 
     async processVideosSequentially() {
-        for (state.currentIndex = 0; state.currentIndex < state.videos.length; state.currentIndex++) {
-            const video = state.videos[state.currentIndex];
-            const videoId = utils.extractVideoId(video.url);
-
-            if (!videoId) {
-                console.error(`Invalid video URL: ${video.url}`);
-                continue;
-            }
-
-            console.log(`Processing (${state.currentIndex + 1}/${state.videos.length}): ${video.title}`);
-            await api.sendVideoToServer(videoId, video.title);
+        if (state.currentIndex >= state.videos.length) {
+            alert("All videos processed!");
+            return;
         }
 
-        alert("All videos have been processed!");
-    }
+        const video = state.videos[state.currentIndex];
+        const videoId = utils.extractVideoId(video.url);
 
-};
+        if (!videoId) {
+            console.error("Could not extract video ID from:", video.url);
+            state.currentIndex++;
+            await this.processVideosSequentially();
+            return;
+        }
 
-// Event handlers
-const handlers = {
+        const success = await this.sendVideoToServer(videoId, video.title);
+        console.log(`Processed ${video.title}: ${success ? 'Success' : 'Failed'}`);
+
+        state.currentIndex++;
+        await this.processVideosSequentially();
+    },
+
     async handleFetchTranscript() {
         const videoId = await utils.getCurrentVideoId();
         const transcriptArea = document.getElementById("transcript-area");
@@ -184,57 +182,22 @@ const handlers = {
             transcriptArea.value = `Error fetching transcript: ${error.message}`;
         }
     },
-    async handleSummarize() {
-        await handlers.handleFetchTranscript();
-        const transcriptArea = document.getElementById("transcript-area");
-        const transcript = transcriptArea.value.trim();
 
+    async handleSummarize() {
+        const transcript = document.getElementById("transcript-area").value;
         if (!transcript) {
-            alert("Please fetch a transcript first!");
+            alert("Please fetch a transcript first.");
             return;
         }
 
         const videoId = await utils.getCurrentVideoId();
-        const videoTitle = await utils.getVideoTitle(videoId);
-
-        await chrome.storage.local.set({
-            currentSummary: null,
-            summaryStatus: 'loading',
-            summaryError: null,
-            currentVideo: {
-                id: videoId,
-                title: videoTitle
-            },
-            initialTranscript: transcript
-        });
-
-        await utils.openPopupWindow('summary.html');
-
-        try {
-            const aiSettings = await api.getAiSettings();
-            const { systemPrompt } = await chrome.storage.sync.get(['systemPrompt']);
-
-            const response = await fetch(aiSettings.url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: aiSettings.model,
-                    prompt: `System: ${utils.sanitizePrompt(systemPrompt || CONSTANTS.API.DEFAULT_SYSTEM_PROMPT)}\n\nHuman: Here's a transcript, please summarize it:\n${transcript}\n\nAssistant:`,
-                    stream: false
-                })
-            });
-
-            const result = await response.json();
-            await chrome.storage.local.set({
-                currentSummary: result.response,
-                summaryStatus: 'complete'
-            });
-        } catch (error) {
-            await chrome.storage.local.set({
-                summaryStatus: 'error',
-                summaryError: `Failed to get summary. Please check the AI endpoint in settings. ${error.message}`
-            });
+        if (!videoId) {
+            alert("Could not determine video ID.");
+            return;
         }
+
+        const videoTitle = await utils.getVideoTitle(videoId);
+        await utils.openPopupWindow(`summary.html?id=${videoId}&title=${encodeURIComponent(videoTitle)}`);
     },
 
     async handleCopyToClipboard() {
@@ -255,7 +218,7 @@ const handlers = {
                 if (videos?.length) {
                     state.videos = videos;
                     state.currentIndex = 0;
-                    await api.processVideosSequentially();
+                    await this.processVideosSequentially();
                 } else {
                     alert("No videos found to process.");
                 }
@@ -269,28 +232,76 @@ const handlers = {
 
     async handleOpenSettings() {
         await utils.openPopupWindow('options.html', {
-            width: 500,  // Smaller width for settings
+            width: 500,
             height: 630
         });
     }
 };
 
-// Initialize
-document.addEventListener("DOMContentLoaded", () => {
+// Initialize function that handles both popup and side panel
+function initializeUI(isSidePanel = false) {
+    alert("initializeUI");
+    console.log(`[UI] Initializing in ${isSidePanel ? 'side panel' : 'popup'} mode`);
+
     const elements = {
         openOptions: document.getElementById("open-options"),
         fetchTranscript: document.getElementById("fetch-current-transcript"),
         copyClipboard: document.getElementById("copy-to-clipboard"),
         summarize: document.getElementById("summarize-transcript"),
         fetchNotifications: document.getElementById("fetch-notifications"),
-        viewSummaries: document.getElementById("view-summaries")
+        viewSummaries: document.getElementById("view-summaries"),
+        toggleSidePanel: document.getElementById("toggle-side-panel")
     };
 
-    // Attach event listeners
-    elements.openOptions.addEventListener("click", handlers.handleOpenSettings);
-    elements.fetchTranscript.addEventListener("click", handlers.handleFetchTranscript);
-    elements.copyClipboard.addEventListener("click", handlers.handleCopyToClipboard);
-    elements.summarize.addEventListener("click", handlers.handleSummarize);
-    elements.fetchNotifications.addEventListener("click", handlers.handleFetchNotifications);
-    elements.viewSummaries.addEventListener("click", handlers.handleViewSummaries);
-});
+    // Log which elements were found
+    console.log('Found elements:', Object.entries(elements).reduce((acc, [key, val]) => {
+        acc[key] = !!val;
+        return acc;
+    }, {}));
+
+    // Bind API methods to preserve context
+    const boundApi = {
+        handleOpenSettings: api.handleOpenSettings.bind(api),
+        handleFetchTranscript: api.handleFetchTranscript.bind(api),
+        handleCopyToClipboard: api.handleCopyToClipboard.bind(api),
+        handleSummarize: api.handleSummarize.bind(api),
+        handleFetchNotifications: api.handleFetchNotifications.bind(api),
+        handleViewSummaries: api.handleViewSummaries.bind(api)
+    };
+
+    // Attach event listeners using bound api handlers
+    elements.openOptions?.addEventListener("click", boundApi.handleOpenSettings);
+    elements.fetchTranscript?.addEventListener("click", boundApi.handleFetchTranscript);
+    elements.copyClipboard?.addEventListener("click", boundApi.handleCopyToClipboard);
+    elements.summarize?.addEventListener("click", boundApi.handleSummarize);
+    elements.fetchNotifications?.addEventListener("click", boundApi.handleFetchNotifications);
+    elements.viewSummaries?.addEventListener("click", boundApi.handleViewSummaries);
+
+    // Only show side panel toggle in popup mode
+    if (!isSidePanel && elements.toggleSidePanel) {
+        elements.toggleSidePanel.addEventListener("click", async () => {
+            console.log("SIDE PANEL BUTTON CLICKED");
+            try {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (!tab.url.includes('youtube.com')) {
+                    alert('Please navigate to a YouTube video first');
+                    return;
+                }
+
+                await chrome.sidePanel.setOptions({
+                    enabled: true,
+                    path: 'side-panel.html'
+                });
+
+                await chrome.sidePanel.open({
+                    windowId: tab.windowId
+                });
+
+                window.close();
+            } catch (error) {
+                console.error('Side panel error:', error);
+                alert('Failed to open side panel: ' + error.message);
+            }
+        });
+    }
+}

@@ -4,13 +4,26 @@
     <meta charset="UTF-8">
     <title>YouTube Transcript</title>
     <link rel="stylesheet" href="style.css" />
+    <style>
+        body {
+            width: 100%;
+            min-width: 300px;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .side-panel-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
 </head>
 <body>
-    <div class="popup-container">
+    <div class="side-panel-container">
         <header>
             <h1>YouTube Transcript</h1>
             <div class="header-buttons">
-                <button id="toggle-side-panel" class="settings-btn" title="Open Side Panel">⇨</button>
                 <button id="view-summaries" class="settings-btn" title="View Previous Summaries">📚</button>
                 <button id="open-options" class="settings-btn" title="Settings">⚙️</button>
             </div>
@@ -27,6 +40,6 @@
         </div>
     </div>
     <script src="app.js"></script>
-    <script src="popup-init.js"></script>
+    <script src="side-panel-init.js"></script>
 </body>
 </html>

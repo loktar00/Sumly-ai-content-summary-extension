@@ -461,3 +461,22 @@ hr {
 .chat-container:not(.hidden) {
     display: flex;
 }
+
+/* Side Panel specific styles */
+.side-panel-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.side-panel-container .popup-content {
+    flex: 1;
+    padding: var(--spacing-md);
+    overflow-y: auto;
+}
+
+.side-panel-container textarea {
+    height: 40vh;
+    resize: vertical;
+}

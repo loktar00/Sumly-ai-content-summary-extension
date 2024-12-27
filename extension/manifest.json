@@ -6,27 +6,49 @@
     "permissions": [
         "activeTab",
         "storage",
-        "scripting"
+        "scripting",
+        "sidePanel",
+        "tabs"
     ],
     "host_permissions": [
         "https://www.youtube.com/*",
         "https://*.youtube.com/*",
-        "http://localhost:11434/*",
         "http://*:11434/*",
         "https://*:11434/*"
     ],
     "action": {
-      "default_popup": "popup.html",
-      "default_title": "YouTube Transcript Tool"
+        "default_popup": "popup.html",
+        "default_title": "YouTube Transcript Tool"
+    },
+    "side_panel": {
+        "default_path": "side-panel.html"
+    },
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+Y"
+            }
+        }
     },
     "web_accessible_resources": [{
         "resources": [
             "options.html",
-            "summary.html"
+            "summary.html",
+            "side-panel.html",
+            "app.js",
+            "popup-init.js",
+            "side-panel-init.js"
         ],
         "matches": ["<all_urls>"]
     }],
     "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.youtube.com http://localhost:11434 http://*:11434 https://*:11434;"
-    }
-  }
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.youtube.com http://*:11434 https://*:11434;"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [{
+        "matches": ["https://www.youtube.com/*"],
+        "js": ["content.js"]
+    }]
+}
