@@ -83,7 +83,7 @@ const utils = {
             return this.parseTranscriptXml(transcriptXml);
         } catch (error) {
             console.error('Error fetching transcript:', error);
-            throw new Error('Failed to fetch transcript: ' + error.message);
+            throw new Error(`Failed to fetch transcript: ${error.message}`);
         }
     },
 
