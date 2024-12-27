@@ -240,7 +240,6 @@ const api = {
 
 // Initialize function that handles both popup and side panel
 function initializeUI(isSidePanel = false) {
-    alert("initializeUI");
     console.log(`[UI] Initializing in ${isSidePanel ? 'side panel' : 'popup'} mode`);
 
     const elements = {
