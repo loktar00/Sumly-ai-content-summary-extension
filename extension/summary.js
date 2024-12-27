@@ -377,42 +377,42 @@ async function checkSummaryStatus() {
     }
 
     switch (data.summaryStatus) {
-        case 'loading':
+    case 'loading':
+        ui.showLoading(true);
+        if (data.initialTranscript && data.currentVideo) {
+            ui.clearChatMessages();
+            const transcriptDiv = document.createElement('div');
+            transcriptDiv.className = 'markdown-body message user-message';
+            transcriptDiv.innerHTML = markdownToHtml(data.initialTranscript);
+            elements.chatMessages.appendChild(transcriptDiv);
+            state.chatHistory = [{ role: 'user', content: data.initialTranscript }];
+        }
+        setTimeout(checkSummaryStatus, CHAT_CHECK_INTERVAL);
+        break;
+
+    case 'complete':
+        if (data.currentSummary && data.currentVideo) {
+            ui.showChatContainer(true);
+            ui.showChatInput(true);
+            state.currentVideoId = data.currentVideo.id;
+            await chat.sendMessage(data.currentSummary, true);
+            await storage.saveConversation();
+            await updateConversationList(data);
+        }
+        break;
+
+    case 'error':
+        ui.showLoading(false);
+        chat.showError(data.summaryError);
+        await chrome.storage.local.set({ summaryStatus: null });
+        break;
+
+    default:
+        if (data.summaryStatus === 'loading') {
             ui.showLoading(true);
-            if (data.initialTranscript && data.currentVideo) {
-                ui.clearChatMessages();
-                const transcriptDiv = document.createElement('div');
-                transcriptDiv.className = 'markdown-body message user-message';
-                transcriptDiv.innerHTML = markdownToHtml(data.initialTranscript);
-                elements.chatMessages.appendChild(transcriptDiv);
-                state.chatHistory = [{ role: 'user', content: data.initialTranscript }];
-            }
             setTimeout(checkSummaryStatus, CHAT_CHECK_INTERVAL);
-            break;
-
-        case 'complete':
-            if (data.currentSummary && data.currentVideo) {
-                ui.showChatContainer(true);
-                ui.showChatInput(true);
-                state.currentVideoId = data.currentVideo.id;
-                await chat.sendMessage(data.currentSummary, true);
-                await storage.saveConversation();
-                await updateConversationList(data);
-            }
-            break;
-
-        case 'error':
-            ui.showLoading(false);
-            chat.showError(data.summaryError);
-            await chrome.storage.local.set({ summaryStatus: null });
-            break;
-
-        default:
-            if (data.summaryStatus === 'loading') {
-                ui.showLoading(true);
-                setTimeout(checkSummaryStatus, CHAT_CHECK_INTERVAL);
-            }
-            break;
+        }
+        break;
     }
 }
 

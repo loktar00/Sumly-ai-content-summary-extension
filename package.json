@@ -4,7 +4,8 @@
   "description": "Fetches Youtube Transcripts and allows a user to summarize using local llms",
   "main": "app.py",
   "scripts": {
-    "lint": "eslint ./extension"
+    "lint": "eslint ./extension",
+    "lint:fix": "eslint ./extension --fix"
   },
   "repository": {
     "type": "git",
