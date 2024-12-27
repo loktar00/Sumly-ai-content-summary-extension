@@ -1,15 +1,20 @@
 # **YouTube Transcript AI Assistant**
 ![base](https://github.com/user-attachments/assets/eb1ff30f-7f8a-42cf-8ba7-e7787e244b92)
 
-This project combines a Flask server for YouTube transcript retrieval with an AI-powered browser extension that provides transcript summaries and interactive conversations about video content.
+This project combines a browser extension for instant transcript access and AI summaries with a Flask server for batch processing YouTube notifications.
 
 ## **Features**
 
-### **Transcript Management**
-- Fetch transcripts from any YouTube video
-- Batch process transcripts from YouTube notifications
-- Copy transcripts to clipboard
-- Store transcripts locally for future reference
+### **Direct Transcript Access**
+- Instantly fetch transcripts from any YouTube video
+- No server required for single video transcripts
+- Automatic language detection with English preference
+- Clean transcript formatting with proper character encoding
+
+### **Batch Processing**
+- Process multiple videos from YouTube notifications
+- Store transcripts locally via Python server
+- Bulk transcript archiving capabilities
 
 ### **AI Integration**
 - Summarize video transcripts using AI
@@ -27,12 +32,12 @@ This project combines a Flask server for YouTube transcript retrieval with an AI
 - Conversation management (view, delete, switch between conversations)
 
 ### **Configuration**
-- Configurable server URL
+- Configurable server URL for batch processing
 - Adjustable AI settings (model, system prompt)
 - Model selection from available Ollama models
 - Customizable system prompts for different use cases
 
-## ** Screenshots **
+## **Screenshots**
 #### **Transcript**
 ![first screen](https://github.com/user-attachments/assets/92643aca-63e5-4c22-a5e1-298d71ac0544)
 
@@ -45,34 +50,23 @@ This project combines a Flask server for YouTube transcript retrieval with an AI
 #### **Settings**
 ![settings screen](https://github.com/user-attachments/assets/2f6fdb5a-09ff-4c6b-9704-b3c8b3869b91)
 
-
-
 ---
 
 ## **Getting Started**
 
 ### **Prerequisites**
-- Anaconda or Miniconda
-- Python 3.8 or higher
 - Browser supporting extensions (Chrome, Edge, or Firefox)
 - [Ollama](https://ollama.ai/) for AI functionality
+- Python 3.8+ (only for batch processing notifications)
 
 ### **Installation**
 
-#### **1. Server Setup**
-1. Clone and set up the repository:
-    ```bash
-    git clone https://github.com/your-repo/youtube-transcript-ai.git
-    cd youtube-transcript-ai/server
-    conda create --name yt-transcripts python=3.8 -y
-    conda activate yt-transcripts
-    pip install -r requirements.txt
-    ```
-
-2. Start the Flask server:
-    ```bash
-    python app.py
-    ```
+#### **1. Browser Extension Setup**
+1. Load the extension in developer mode:
+   - Open `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked"
+   - Select the `extension` directory
 
 #### **2. Ollama Setup**
 1. Install Ollama following instructions at [ollama.ai](https://ollama.ai)
@@ -82,12 +76,15 @@ This project combines a Flask server for YouTube transcript retrieval with an AI
     ```
 3. Start the Ollama server (usually runs on port 11434)
 
-#### **3. Browser Extension Setup**
-1. Load the extension in developer mode:
-   - Open `chrome://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked"
-   - Select the `extension` directory
+#### **3. Server Setup (Optional - for batch processing)**
+Only needed if you want to process YouTube notifications in bulk:
+```bash
+cd server
+conda create --name yt-transcripts python=3.8 -y
+conda activate yt-transcripts
+pip install -r requirements.txt
+python app.py
+```
 
 ---
 
@@ -95,9 +92,14 @@ This project combines a Flask server for YouTube transcript retrieval with an AI
 
 ### **Basic Usage**
 1. Click the extension icon on any YouTube video
-2. Use "Get Transcript" to fetch the current video's transcript
+2. Use "Get Transcript" to instantly fetch the current video's transcript
 3. Click "Summarize with AI" to generate an AI summary
 4. Interact with the AI through the chat interface
+
+### **Batch Processing**
+1. Navigate to YouTube notifications
+2. Click "Fetch Notifications" to process all video transcripts
+3. Transcripts are saved to the server for future reference
 
 ### **Library and Conversations**
 - Click the "📚" icon to access your summary library
@@ -109,7 +111,7 @@ This project combines a Flask server for YouTube transcript retrieval with an AI
 ### **Settings Configuration**
 1. Click the "⚙️" icon to open settings
 2. Configure:
-   - Transcript API URL
+   - Server URL (for batch processing)
    - AI API Base URL (Ollama)
    - AI Model selection
    - System prompt customization
