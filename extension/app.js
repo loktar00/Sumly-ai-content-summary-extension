@@ -310,26 +310,6 @@ const handlers = {
             width: 500,  // Smaller width for settings
             height: 630
         });
-    },
-
-    async handleToggleSidePanel() {
-        try {
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (!tab.url.includes('youtube.com')) {
-                alert('Please navigate to a YouTube video first');
-                return;
-            }
-
-            const response = await chrome.runtime.sendMessage({ action: 'toggleView' });
-            if (response.success) {
-                window.close();
-            } else {
-                throw new Error(response.error || 'Unknown error');
-            }
-        } catch (error) {
-            console.error('View toggle error:', error);
-            alert('Failed to toggle view: ' + error.message);
-        }
     }
 };
 
@@ -390,7 +370,7 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
 }
 
 // Initialize function that handles both popup and side panel
-function initializeUI(isSidePanel = false) {
+function initializeUI() {
     const elements = {
         openOptions: document.getElementById("open-options"),
         fetchTranscript: document.getElementById("fetch-current-transcript"),
@@ -398,7 +378,6 @@ function initializeUI(isSidePanel = false) {
         summarize: document.getElementById("summarize-transcript"),
         fetchNotifications: document.getElementById("fetch-notifications"),
         viewSummaries: document.getElementById("view-summaries"),
-        toggleSidePanel: document.getElementById("toggle-side-panel")
     };
 
     const boundHandlers = {
@@ -408,7 +387,6 @@ function initializeUI(isSidePanel = false) {
         handleSummarize: handlers.handleSummarize.bind(handlers),
         handleFetchNotifications: handlers.handleFetchNotifications.bind(handlers),
         handleViewSummaries: handlers.handleViewSummaries.bind(handlers),
-        handleToggleSidePanel: handlers.handleToggleSidePanel.bind(handlers)
     };
 
     // Attach event listeners with bound handlers
@@ -418,7 +396,6 @@ function initializeUI(isSidePanel = false) {
     if (elements.summarize) elements.summarize.addEventListener("click", boundHandlers.handleSummarize);
     if (elements.fetchNotifications) elements.fetchNotifications.addEventListener("click", boundHandlers.handleFetchNotifications);
     if (elements.viewSummaries) elements.viewSummaries.addEventListener("click", boundHandlers.handleViewSummaries);
-    if (elements.toggleSidePanel) elements.toggleSidePanel.addEventListener("click", boundHandlers.handleToggleSidePanel);
 }
 
 // Add to the chat utilities section

@@ -2,10 +2,8 @@
 let isPopupView = false;
 
 chrome.runtime.onInstalled.addListener(async () => {
-    console.log('[Background] Extension installed');
     try {
-        // Start in side panel mode
-        await chrome.action.setPopup({ popup: '' });  // No popup by default
+        await chrome.action.setPopup({ popup: '' });
         await chrome.sidePanel.setOptions({
             enabled: true,
             path: 'side-panel.html'
@@ -40,31 +38,4 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             console.error('[Background] Error enabling side panel:', error);
         }
     }
-});
-
-// Handle messages from popup/side panel
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-    if (request.action === 'toggleView') {
-        try {
-            if (isPopupView) {
-                // Switch to side panel
-                await chrome.action.setPopup({ popup: '' });
-                await chrome.sidePanel.setOptions({
-                    enabled: true,
-                    path: 'side-panel.html'
-                });
-                isPopupView = false;
-            } else {
-                // Switch to popup
-                await chrome.sidePanel.setOptions({ enabled: false });
-                await chrome.action.setPopup({ popup: 'popup.html' });
-                isPopupView = true;
-            }
-            sendResponse({ success: true });
-        } catch (error) {
-            console.error('[Background] Toggle error:', error);
-            sendResponse({ success: false, error: error.message });
-        }
-    }
-    return true;  // Keep the message channel open for async response
 });

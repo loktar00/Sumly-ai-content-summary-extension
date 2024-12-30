@@ -17,7 +17,6 @@
         "https://*:11434/*"
     ],
     "action": {
-        "default_popup": "popup.html",
         "default_title": "YouTube Transcript"
     },
     "side_panel": {
@@ -36,7 +35,6 @@
             "summary.html",
             "side-panel.html",
             "app.js",
-            "popup-init.js",
             "side-panel-init.js"
         ],
         "matches": ["<all_urls>"]
