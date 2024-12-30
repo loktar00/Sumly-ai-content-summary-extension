@@ -1,5 +1,3 @@
-console.log('Loading app.js...', new Date().toISOString());
-
 const CONSTANTS = {
     API: {
         DEFAULT_API_URL: "http://localhost:8892",
@@ -15,7 +13,8 @@ const CONSTANTS = {
 // State management
 const state = {
     videos: [],
-    currentIndex: 0
+    currentIndex: 0,
+    conversationHistory: []
 };
 
 // Utility functions
@@ -92,23 +91,29 @@ const utils = {
     parseTranscriptXml(transcriptXml) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(transcriptXml, "text/xml");
+
+        // Create a textarea element for decoding HTML entities
         const decoder = document.createElement('textarea');
 
         return Array.from(xmlDoc.getElementsByTagName('text'))
             .map(node => ({
                 text: node.textContent
                     .trim()
+                    // Decode HTML entities
                     .replace(/&([^;]+);/g, (match) => {
                         decoder.innerHTML = match;
                         return decoder.value;
                     })
+                    // Replace multiple spaces with single space
                     .replace(/\s+/g, ' ')
+                    // Remove any remaining newlines
                     .replace(/\n/g, ' '),
                 start: parseFloat(node.getAttribute('start')),
                 duration: parseFloat(node.getAttribute('dur') || '0')
             }))
             .filter(line => line.text.length > 0)
             .map(line => line.text)
+            // Join with single space instead of newline
             .join(' ');
     }
 };
@@ -143,28 +148,26 @@ const api = {
     },
 
     async processVideosSequentially() {
-        if (state.currentIndex >= state.videos.length) {
-            alert("All videos processed!");
-            return;
+        for (state.currentIndex = 0; state.currentIndex < state.videos.length; state.currentIndex++) {
+            const video = state.videos[state.currentIndex];
+            const videoId = utils.extractVideoId(video.url);
+
+            if (!videoId) {
+                console.error(`Invalid video URL: ${video.url}`);
+                continue;
+            }
+
+            console.log(`Processing (${state.currentIndex + 1}/${state.videos.length}): ${video.title}`);
+            await api.sendVideoToServer(videoId, video.title);
         }
 
-        const video = state.videos[state.currentIndex];
-        const videoId = utils.extractVideoId(video.url);
+        alert("All videos have been processed!");
+    }
 
-        if (!videoId) {
-            console.error("Could not extract video ID from:", video.url);
-            state.currentIndex++;
-            await this.processVideosSequentially();
-            return;
-        }
+};
 
-        const success = await this.sendVideoToServer(videoId, video.title);
-        console.log(`Processed ${video.title}: ${success ? 'Success' : 'Failed'}`);
-
-        state.currentIndex++;
-        await this.processVideosSequentially();
-    },
-
+// Event handlers
+const handlers = {
     async handleFetchTranscript() {
         const videoId = await utils.getCurrentVideoId();
         const transcriptArea = document.getElementById("transcript-area");
@@ -184,20 +187,155 @@ const api = {
     },
 
     async handleSummarize() {
-        const transcript = document.getElementById("transcript-area").value;
-        if (!transcript) {
-            alert("Please fetch a transcript first.");
-            return;
-        }
+        try {
+            const transcriptArea = document.getElementById("transcript-area");
+            let transcript = transcriptArea.value.trim();
 
-        const videoId = await utils.getCurrentVideoId();
-        if (!videoId) {
-            alert("Could not determine video ID.");
-            return;
-        }
+            if (!transcript) {
+                await this.handleFetchTranscript();
+                transcript = transcriptArea.value.trim();
+            }
 
-        const videoTitle = await utils.getVideoTitle(videoId);
-        await utils.openPopupWindow(`summary.html?id=${videoId}&title=${encodeURIComponent(videoTitle)}`);
+            const container = document.querySelector('#panel-content');
+            if (!container) {
+                return;
+            }
+
+            const videoTitle = await utils.getVideoTitle(await utils.getCurrentVideoId());
+
+            // Render the summary template
+            container.innerHTML = renderTemplate('summary', {
+                title: videoTitle,
+                transcript
+            });
+
+            // Get references to elements after template is rendered
+            const chatContainer = container.querySelector('#chat-container');
+            const formattedSummary = container.querySelector('#formatted-summary');
+            const chatLoading = container.querySelector('#chat-loading');
+            const chatInput = container.querySelector('#chat-input');
+            const sendButton = container.querySelector('#send-message');
+            const backButton = container.querySelector('#back-to-transcript');
+
+            if (!chatContainer || !formattedSummary || !chatLoading) {
+                console.error('Required elements not found after template render');
+                return;
+            }
+
+            // Add back button handler
+            backButton.addEventListener('click', () => {
+                location.reload();
+            });
+
+            // Add transcript as first message
+            formattedSummary.innerHTML = `
+                <div class="message user-message">
+                    <div class="message-content">
+                        ${markdownToHtml(transcript)}
+                    </div>
+                </div>
+            `;
+
+            // Force scroll to the bottom
+            autoScroll(true);
+
+            try {
+                // Show loading state
+                chatLoading.classList.remove('hidden');
+
+                const aiSettings = await api.getAiSettings();
+                const systemPrompt = (await chrome.storage.sync.get(['systemPrompt'])).systemPrompt || CONSTANTS.API.DEFAULT_SYSTEM_PROMPT;
+
+                // Initialize conversation history with system prompt
+                state.conversationHistory = [{
+                    role: 'system',
+                    content: systemPrompt
+                }];
+
+                // Add the transcript as user message
+                state.conversationHistory.push({
+                    role: 'user',
+                    content: transcript
+                });
+
+                const response = await fetch(aiSettings.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: aiSettings.model,
+                        prompt: state.conversationHistory.map(msg =>
+                            msg.role === 'system' ? `System: ${msg.content}` :
+                            msg.role === 'user' ? `Human: ${msg.content}` :
+                            `Assistant: ${msg.content}`
+                        ).join('\n\n') + '\n\nAssistant:',
+                        stream: true
+                    })
+                });
+
+                const reader = response.body.getReader();
+                let accumulatedResponse = '';
+
+                // Create AI response message container
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'message assistant-message';
+                formattedSummary.appendChild(aiMessage);
+
+                // Process the stream
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = new TextDecoder().decode(value);
+                    const lines = chunk.split('\n').filter(line => line.trim());
+
+                    for (const line of lines) {
+                        try {
+                            const json = JSON.parse(line);
+                            if (json.response) {
+                                accumulatedResponse += json.response;
+                                aiMessage.innerHTML = `
+                                    <div class="message-content">
+                                        ${markdownToHtml(accumulatedResponse)}
+                                    </div>
+                                `;
+                                autoScroll(formattedSummary);
+                            }
+                        } catch (e) {
+                            console.warn('Failed to parse JSON:', e);
+                        }
+                    }
+                }
+
+                // Force scroll when complete
+                autoScroll(formattedSummary, true);
+
+                // After getting the response, add it to history
+                state.conversationHistory.push({
+                    role: 'assistant',
+                    content: accumulatedResponse
+                });
+
+                // Hide loading, show chat input
+                chatLoading.classList.add('hidden');
+                container.querySelector('.chat-input-container').classList.remove('hidden');
+
+                // Setup chat functionality with streaming
+                if (chatInput && sendButton) {
+                    setupStreamingChatHandlers(formattedSummary, chatInput, sendButton, aiSettings);
+                }
+            } catch (error) {
+                chatLoading.innerHTML = `
+                    <div class="error-message">
+                        Error generating summary: ${error.message}
+                    </div>
+                `;
+                // Force scroll on error
+                autoScroll(formattedSummary, true);
+            }
+        } catch (error) {
+            console.error('Error in handleSummarize:', error);
+            alert('Failed to generate summary: ' + error.message);
+        }
     },
 
     async handleCopyToClipboard() {
@@ -218,7 +356,7 @@ const api = {
                 if (videos?.length) {
                     state.videos = videos;
                     state.currentIndex = 0;
-                    await this.processVideosSequentially();
+                    await api.processVideosSequentially();
                 } else {
                     alert("No videos found to process.");
                 }
@@ -232,56 +370,33 @@ const api = {
 
     async handleOpenSettings() {
         await utils.openPopupWindow('options.html', {
-            width: 500,
+            width: 500,  // Smaller width for settings
             height: 630
         });
-    }
-};
+    },
 
-// Initialize function that handles both popup and side panel
-function initializeUI(isSidePanel = false) {
-    console.log(`[UI] Initializing in ${isSidePanel ? 'side panel' : 'popup'} mode`);
+    async handleToggleSidePanel() {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    const elements = {
-        openOptions: document.getElementById("open-options"),
-        fetchTranscript: document.getElementById("fetch-current-transcript"),
-        copyClipboard: document.getElementById("copy-to-clipboard"),
-        summarize: document.getElementById("summarize-transcript"),
-        fetchNotifications: document.getElementById("fetch-notifications"),
-        viewSummaries: document.getElementById("view-summaries"),
-        toggleSidePanel: document.getElementById("toggle-side-panel")
-    };
+            // Check if we're in the side panel by looking at the window type
+            const isSidePanel = window.location.pathname.endsWith('side-panel.html');
 
-    // Log which elements were found
-    console.log('Found elements:', Object.entries(elements).reduce((acc, [key, val]) => {
-        acc[key] = !!val;
-        return acc;
-    }, {}));
+            if (isSidePanel) {
+                // Close side panel and open popup
+                await chrome.sidePanel.setOptions({
+                    enabled: false,
+                    path: 'side-panel.html'
+                });
 
-    // Bind API methods to preserve context
-    const boundApi = {
-        handleOpenSettings: api.handleOpenSettings.bind(api),
-        handleFetchTranscript: api.handleFetchTranscript.bind(api),
-        handleCopyToClipboard: api.handleCopyToClipboard.bind(api),
-        handleSummarize: api.handleSummarize.bind(api),
-        handleFetchNotifications: api.handleFetchNotifications.bind(api),
-        handleViewSummaries: api.handleViewSummaries.bind(api)
-    };
+                // Create popup window
+                await chrome.action.setPopup({ popup: 'popup.html' });
+                await chrome.action.openPopup();
 
-    // Attach event listeners using bound api handlers
-    elements.openOptions?.addEventListener("click", boundApi.handleOpenSettings);
-    elements.fetchTranscript?.addEventListener("click", boundApi.handleFetchTranscript);
-    elements.copyClipboard?.addEventListener("click", boundApi.handleCopyToClipboard);
-    elements.summarize?.addEventListener("click", boundApi.handleSummarize);
-    elements.fetchNotifications?.addEventListener("click", boundApi.handleFetchNotifications);
-    elements.viewSummaries?.addEventListener("click", boundApi.handleViewSummaries);
-
-    // Only show side panel toggle in popup mode
-    if (!isSidePanel && elements.toggleSidePanel) {
-        elements.toggleSidePanel.addEventListener("click", async () => {
-            console.log("SIDE PANEL BUTTON CLICKED");
-            try {
-                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                // Close the side panel
+                window.close();
+            } else {
+                // Regular popup to side panel flow
                 if (!tab.url.includes('youtube.com')) {
                     alert('Please navigate to a YouTube video first');
                     return;
@@ -297,10 +412,171 @@ function initializeUI(isSidePanel = false) {
                 });
 
                 window.close();
-            } catch (error) {
-                console.error('Side panel error:', error);
-                alert('Failed to open side panel: ' + error.message);
             }
-        });
+        } catch (error) {
+            console.error('Side panel error:', error);
+            alert('Failed to toggle side panel: ' + error.message);
+        }
     }
+};
+
+// Add this helper function at the top level
+function autoScroll(force = false) {
+    const element = document.getElementById("chat-messages");
+    // Check if user has scrolled up (tolerance of 100px from bottom)
+    const isUserScrolledUp = element.scrollHeight - element.clientHeight - element.scrollTop > 100;
+
+    // Only auto-scroll if user hasn't scrolled up or if we're forcing the scroll
+    if (!isUserScrolledUp || force) {
+        element.scrollTop = element.scrollHeight;
+    }
+}
+
+// Updated chat handlers to support streaming and markdown
+async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButton, aiSettings) {
+    const chatInputContainer = document.querySelector('.chat-input-container');
+    const chatLoading = document.querySelector('#chat-loading');
+
+    async function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Create new message elements
+        const userMessage = document.createElement('div');
+        userMessage.className = 'message user-message';
+        userMessage.innerHTML = `
+            <div class="message-content">
+                ${markdownToHtml(message)}
+            </div>
+        `;
+        formattedSummary.appendChild(userMessage);
+
+        const aiMessage = document.createElement('div');
+        aiMessage.className = 'message assistant-message';
+        formattedSummary.appendChild(aiMessage);
+
+        chatInput.value = '';
+
+        // Hide input, show loading
+        chatInputContainer.classList.add('hidden');
+        chatLoading.classList.remove('hidden');
+
+        // Force scroll after user message
+        autoScroll(true);
+
+        try {
+            // Add user message to history
+            state.conversationHistory.push({
+                role: 'user',
+                content: message
+            });
+
+            // Send the entire conversation history
+            const response = await fetch(aiSettings.url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: aiSettings.model,
+                    prompt: state.conversationHistory.map(msg =>
+                        msg.role === 'system' ? `System: ${msg.content}` :
+                        msg.role === 'user' ? `Human: ${msg.content}` :
+                        `Assistant: ${msg.content}`
+                    ).join('\n\n') + '\n\nAssistant:',
+                    stream: true
+                })
+            });
+
+            const reader = response.body.getReader();
+            let accumulatedResponse = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = new TextDecoder().decode(value);
+                const lines = chunk.split('\n').filter(line => line.trim());
+
+                for (const line of lines) {
+                    try {
+                        const json = JSON.parse(line);
+                        if (json.response) {
+                            accumulatedResponse += json.response;
+                            aiMessage.innerHTML = `
+                                <div class="message-content">
+                                    ${markdownToHtml(accumulatedResponse)}
+                                </div>
+                            `;
+                            autoScroll();
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse JSON:', e);
+                    }
+                }
+            }
+
+            // Add AI response to history
+            state.conversationHistory.push({ role: 'assistant', content: accumulatedResponse });
+
+            // Force scroll when complete
+            autoScroll(true);
+
+        } catch (error) {
+            aiMessage.innerHTML = `
+                <div class="error-message">
+                    Error: ${error.message}
+                </div>
+            `;
+            // Force scroll on error
+            autoScroll(true);
+        } finally {
+            // Show input, hide loading
+            chatLoading.classList.add('hidden');
+            chatInputContainer.classList.remove('hidden');
+            chatInput.focus(); // Optional: focus the input for immediate typing
+        }
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+}
+
+// Initialize function that handles both popup and side panel
+function initializeUI(isSidePanel = false) {
+    console.log(`[UI] Initializing in ${isSidePanel ? 'side panel' : 'popup'} mode`);
+
+    // Add event listeners immediately, don't wait for DOMContentLoaded
+    const elements = {
+        openOptions: document.getElementById("open-options"),
+        fetchTranscript: document.getElementById("fetch-current-transcript"),
+        copyClipboard: document.getElementById("copy-to-clipboard"),
+        summarize: document.getElementById("summarize-transcript"),
+        fetchNotifications: document.getElementById("fetch-notifications"),
+        viewSummaries: document.getElementById("view-summaries"),
+        toggleSidePanel: document.getElementById("toggle-side-panel")
+    };
+
+    // Bind handlers to preserve 'this' context
+    const boundHandlers = {
+        handleOpenSettings: handlers.handleOpenSettings.bind(handlers),
+        handleFetchTranscript: handlers.handleFetchTranscript.bind(handlers),
+        handleCopyToClipboard: handlers.handleCopyToClipboard.bind(handlers),
+        handleSummarize: handlers.handleSummarize.bind(handlers),
+        handleFetchNotifications: handlers.handleFetchNotifications.bind(handlers),
+        handleViewSummaries: handlers.handleViewSummaries.bind(handlers),
+        handleToggleSidePanel: handlers.handleToggleSidePanel.bind(handlers)
+    };
+
+    // Attach event listeners with bound handlers
+    if (elements.openOptions) elements.openOptions.addEventListener("click", boundHandlers.handleOpenSettings);
+    if (elements.fetchTranscript) elements.fetchTranscript.addEventListener("click", boundHandlers.handleFetchTranscript);
+    if (elements.copyClipboard) elements.copyClipboard.addEventListener("click", boundHandlers.handleCopyToClipboard);
+    if (elements.summarize) elements.summarize.addEventListener("click", boundHandlers.handleSummarize);
+    if (elements.fetchNotifications) elements.fetchNotifications.addEventListener("click", boundHandlers.handleFetchNotifications);
+    if (elements.viewSummaries) elements.viewSummaries.addEventListener("click", boundHandlers.handleViewSummaries);
+    if (elements.toggleSidePanel) elements.toggleSidePanel.addEventListener("click", boundHandlers.handleToggleSidePanel);
 }

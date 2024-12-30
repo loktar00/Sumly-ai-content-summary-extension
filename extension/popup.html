@@ -15,7 +15,7 @@
                 <button id="open-options" class="settings-btn" title="Settings">⚙️</button>
             </div>
         </header>
-        <div class="popup-content">
+        <div class="popup-content" id="panel-content">
             <button id="summarize-transcript" class="btn ai-btn">Summarize with AI</button>
             <textarea id="transcript-area" rows="10" cols="50" placeholder="Transcript will appear here..."></textarea>
             <div class="button-group">
@@ -26,6 +26,8 @@
             <button id="fetch-notifications" class="btn">Notification Transcripts</button>
         </div>
     </div>
+    <script src="templates.js"></script>
+    <script src="markdown.js"></script>
     <script src="app.js"></script>
     <script src="popup-init.js"></script>
 </body>

@@ -17,6 +17,19 @@
             display: flex;
             flex-direction: column;
         }
+        .summary-content {
+            padding: 1rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+        #summary-area {
+            white-space: pre-wrap;
+            margin-top: 1rem;
+            line-height: 1.5;
+        }
+        #back-to-transcript {
+            font-size: 1.2em;
+        }
     </style>
 </head>
 <body>
@@ -24,11 +37,12 @@
         <header>
             <h1>YouTube Transcript</h1>
             <div class="header-buttons">
+                <button id="toggle-side-panel" class="settings-btn" title="Close Side Panel">⇦</button>
                 <button id="view-summaries" class="settings-btn" title="View Previous Summaries">📚</button>
                 <button id="open-options" class="settings-btn" title="Settings">⚙️</button>
             </div>
         </header>
-        <div class="popup-content">
+        <div class="popup-content" id="panel-content">
             <button id="summarize-transcript" class="btn ai-btn">Summarize with AI</button>
             <textarea id="transcript-area" rows="10" cols="50" placeholder="Transcript will appear here..."></textarea>
             <div class="button-group">
@@ -39,6 +53,8 @@
             <button id="fetch-notifications" class="btn">Notification Transcripts</button>
         </div>
     </div>
+    <script src="templates.js"></script>
+    <script src="markdown.js"></script>
     <script src="app.js"></script>
     <script src="side-panel-init.js"></script>
 </body>
