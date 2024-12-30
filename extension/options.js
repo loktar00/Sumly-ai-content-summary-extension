@@ -1,15 +1,3 @@
-// Constants
-const CONSTANTS = {
-    API: {
-        DEFAULT_AI_URL: "http://localhost:11434",
-        DEFAULT_MODEL: "mistral",
-        DEFAULT_SYSTEM_PROMPT: "You are a helpful AI assistant. Please provide concise, unbiased summaries and responses. Focus on the main points and key information."
-    },
-    DELAYS: {
-        SAVE_MESSAGE: 2000
-    }
-};
-
 // State management
 const state = {
     models: []

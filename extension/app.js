@@ -1,16 +1,3 @@
-const CONSTANTS = {
-    API: {
-        DEFAULT_API_URL: "http://localhost:8892",
-        DEFAULT_AI_URL: "http://localhost:11434",
-        DEFAULT_AI_MODEL: "mistral",
-        DEFAULT_SYSTEM_PROMPT: "You are a helpful AI assistant. Please provide concise, unbiased summaries."
-    },
-    DELAYS: {
-        NOTIFICATION: 3000
-    }
-};
-
-// State management
 const state = {
     videos: [],
     currentIndex: 0,
@@ -133,6 +120,11 @@ const api = {
         };
     },
 
+    async getSystemPrompt() {
+        const { systemPrompt } = await chrome.storage.sync.get(['systemPrompt']);
+        return systemPrompt || CONSTANTS.API.DEFAULT_SYSTEM_PROMPT;
+    },
+
     async sendVideoToServer(videoId, videoTitle) {
         const serverUrl = await this.getApiUrl();
         const url = `${serverUrl}/fetch_transcript?id=${videoId}&title=${encodeURIComponent(videoTitle)}`;
@@ -197,9 +189,7 @@ const handlers = {
             }
 
             const container = document.querySelector('#panel-content');
-            if (!container) {
-                return;
-            }
+            if (!container) return;
 
             const videoTitle = await utils.getVideoTitle(await utils.getCurrentVideoId());
 
@@ -210,25 +200,24 @@ const handlers = {
             });
 
             // Get references to elements after template is rendered
-            const chatContainer = container.querySelector('#chat-container');
-            const formattedSummary = container.querySelector('#formatted-summary');
-            const chatLoading = container.querySelector('#chat-loading');
-            const chatInput = container.querySelector('#chat-input');
-            const sendButton = container.querySelector('#send-message');
-            const backButton = container.querySelector('#back-to-transcript');
+            const elements = {
+                chatContainer: container.querySelector('#chat-container'),
+                formattedSummary: container.querySelector('#formatted-summary'),
+                chatLoading: container.querySelector('#chat-loading'),
+                chatInput: container.querySelector('#chat-input'),
+                sendButton: container.querySelector('#send-message'),
+                backButton: container.querySelector('#back-to-transcript')
+            };
 
-            if (!chatContainer || !formattedSummary || !chatLoading) {
+            if (!elements.chatContainer || !elements.formattedSummary || !elements.chatLoading) {
                 console.error('Required elements not found after template render');
                 return;
             }
 
-            // Add back button handler
-            backButton.addEventListener('click', () => {
-                location.reload();
-            });
+            elements.backButton.addEventListener('click', () => location.reload());
 
             // Add transcript as first message
-            formattedSummary.innerHTML = `
+            elements.formattedSummary.innerHTML = `
                 <div class="message user-message">
                     <div class="message-content">
                         ${markdownToHtml(transcript)}
@@ -236,101 +225,49 @@ const handlers = {
                 </div>
             `;
 
-            // Force scroll to the bottom
-            autoScroll(true);
+            ui.autoScroll(true);
 
             try {
-                // Show loading state
-                chatLoading.classList.remove('hidden');
+                ui.toggleChatElements(true);
 
                 const aiSettings = await api.getAiSettings();
-                const systemPrompt = (await chrome.storage.sync.get(['systemPrompt'])).systemPrompt || CONSTANTS.API.DEFAULT_SYSTEM_PROMPT;
+                const systemPrompt = await api.getSystemPrompt();
 
-                // Initialize conversation history with system prompt
-                state.conversationHistory = [{
-                    role: 'system',
-                    content: systemPrompt
-                }];
+                // Initialize conversation history
+                state.conversationHistory = [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: transcript }
+                ];
 
-                // Add the transcript as user message
-                state.conversationHistory.push({
-                    role: 'user',
-                    content: transcript
-                });
-
-                const response = await fetch(aiSettings.url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: aiSettings.model,
-                        prompt: state.conversationHistory.map(msg =>
-                            msg.role === 'system' ? `System: ${msg.content}` :
-                            msg.role === 'user' ? `Human: ${msg.content}` :
-                            `Assistant: ${msg.content}`
-                        ).join('\n\n') + '\n\nAssistant:',
-                        stream: true
-                    })
-                });
-
-                const reader = response.body.getReader();
-                let accumulatedResponse = '';
-
-                // Create AI response message container
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant-message';
-                formattedSummary.appendChild(aiMessage);
+                elements.formattedSummary.appendChild(aiMessage);
 
-                // Process the stream
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+                const prompt = chat.formatConversationPrompt(state.conversationHistory);
+                const response = await chat.handleStreamingAIResponse(aiSettings, prompt, aiMessage);
 
-                    const chunk = new TextDecoder().decode(value);
-                    const lines = chunk.split('\n').filter(line => line.trim());
-
-                    for (const line of lines) {
-                        try {
-                            const json = JSON.parse(line);
-                            if (json.response) {
-                                accumulatedResponse += json.response;
-                                aiMessage.innerHTML = `
-                                    <div class="message-content">
-                                        ${markdownToHtml(accumulatedResponse)}
-                                    </div>
-                                `;
-                                autoScroll(formattedSummary);
-                            }
-                        } catch (e) {
-                            console.warn('Failed to parse JSON:', e);
-                        }
-                    }
-                }
-
-                // Force scroll when complete
-                autoScroll(formattedSummary, true);
-
-                // After getting the response, add it to history
                 state.conversationHistory.push({
                     role: 'assistant',
-                    content: accumulatedResponse
+                    content: response
                 });
 
-                // Hide loading, show chat input
-                chatLoading.classList.add('hidden');
-                container.querySelector('.chat-input-container').classList.remove('hidden');
+                ui.toggleChatElements(false);
 
-                // Setup chat functionality with streaming
-                if (chatInput && sendButton) {
-                    setupStreamingChatHandlers(formattedSummary, chatInput, sendButton, aiSettings);
+                if (elements.chatInput && elements.sendButton) {
+                    setupStreamingChatHandlers(
+                        elements.formattedSummary,
+                        elements.chatInput,
+                        elements.sendButton,
+                        aiSettings
+                    );
                 }
             } catch (error) {
-                chatLoading.innerHTML = `
+                elements.chatLoading.innerHTML = `
                     <div class="error-message">
                         Error generating summary: ${error.message}
                     </div>
                 `;
-                // Force scroll on error
-                autoScroll(formattedSummary, true);
+                ui.autoScroll(true);
             }
         } catch (error) {
             console.error('Error in handleSummarize:', error);
@@ -378,70 +315,31 @@ const handlers = {
     async handleToggleSidePanel() {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab.url.includes('youtube.com')) {
+                alert('Please navigate to a YouTube video first');
+                return;
+            }
 
-            // Check if we're in the side panel by looking at the window type
-            const isSidePanel = window.location.pathname.endsWith('side-panel.html');
-
-            if (isSidePanel) {
-                // Close side panel and open popup
-                await chrome.sidePanel.setOptions({
-                    enabled: false,
-                    path: 'side-panel.html'
-                });
-
-                // Create popup window
-                await chrome.action.setPopup({ popup: 'popup.html' });
-                await chrome.action.openPopup();
-
-                // Close the side panel
+            const response = await chrome.runtime.sendMessage({ action: 'toggleView' });
+            if (response.success) {
                 window.close();
             } else {
-                // Regular popup to side panel flow
-                if (!tab.url.includes('youtube.com')) {
-                    alert('Please navigate to a YouTube video first');
-                    return;
-                }
-
-                await chrome.sidePanel.setOptions({
-                    enabled: true,
-                    path: 'side-panel.html'
-                });
-
-                await chrome.sidePanel.open({
-                    windowId: tab.windowId
-                });
-
-                window.close();
+                throw new Error(response.error || 'Unknown error');
             }
         } catch (error) {
-            console.error('Side panel error:', error);
-            alert('Failed to toggle side panel: ' + error.message);
+            console.error('View toggle error:', error);
+            alert('Failed to toggle view: ' + error.message);
         }
     }
 };
 
-// Add this helper function at the top level
-function autoScroll(force = false) {
-    const element = document.getElementById("chat-messages");
-    // Check if user has scrolled up (tolerance of 100px from bottom)
-    const isUserScrolledUp = element.scrollHeight - element.clientHeight - element.scrollTop > 100;
-
-    // Only auto-scroll if user hasn't scrolled up or if we're forcing the scroll
-    if (!isUserScrolledUp || force) {
-        element.scrollTop = element.scrollHeight;
-    }
-}
-
 // Updated chat handlers to support streaming and markdown
 async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButton, aiSettings) {
-    const chatInputContainer = document.querySelector('.chat-input-container');
-    const chatLoading = document.querySelector('#chat-loading');
-
     async function sendMessage() {
         const message = chatInput.value.trim();
         if (!message) return;
 
-        // Create new message elements
+        // Create message elements
         const userMessage = document.createElement('div');
         userMessage.className = 'message user-message';
         userMessage.innerHTML = `
@@ -456,83 +354,29 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
         formattedSummary.appendChild(aiMessage);
 
         chatInput.value = '';
-
-        // Hide input, show loading
-        chatInputContainer.classList.add('hidden');
-        chatLoading.classList.remove('hidden');
-
-        // Force scroll after user message
-        autoScroll(true);
+        ui.toggleChatElements(true);
+        ui.autoScroll(true);
 
         try {
-            // Add user message to history
             state.conversationHistory.push({
                 role: 'user',
                 content: message
             });
 
-            // Send the entire conversation history
-            const response = await fetch(aiSettings.url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: aiSettings.model,
-                    prompt: state.conversationHistory.map(msg =>
-                        msg.role === 'system' ? `System: ${msg.content}` :
-                        msg.role === 'user' ? `Human: ${msg.content}` :
-                        `Assistant: ${msg.content}`
-                    ).join('\n\n') + '\n\nAssistant:',
-                    stream: true
-                })
+            const prompt = chat.formatConversationPrompt(state.conversationHistory);
+            const response = await chat.handleStreamingAIResponse(aiSettings, prompt, aiMessage);
+
+            state.conversationHistory.push({
+                role: 'assistant',
+                content: response
             });
 
-            const reader = response.body.getReader();
-            let accumulatedResponse = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = new TextDecoder().decode(value);
-                const lines = chunk.split('\n').filter(line => line.trim());
-
-                for (const line of lines) {
-                    try {
-                        const json = JSON.parse(line);
-                        if (json.response) {
-                            accumulatedResponse += json.response;
-                            aiMessage.innerHTML = `
-                                <div class="message-content">
-                                    ${markdownToHtml(accumulatedResponse)}
-                                </div>
-                            `;
-                            autoScroll();
-                        }
-                    } catch (e) {
-                        console.warn('Failed to parse JSON:', e);
-                    }
-                }
-            }
-
-            // Add AI response to history
-            state.conversationHistory.push({ role: 'assistant', content: accumulatedResponse });
-
-            // Force scroll when complete
-            autoScroll(true);
-
+            ui.autoScroll(true);
         } catch (error) {
-            aiMessage.innerHTML = `
-                <div class="error-message">
-                    Error: ${error.message}
-                </div>
-            `;
-            // Force scroll on error
-            autoScroll(true);
+            console.error('Chat error:', error);
         } finally {
-            // Show input, hide loading
-            chatLoading.classList.add('hidden');
-            chatInputContainer.classList.remove('hidden');
-            chatInput.focus(); // Optional: focus the input for immediate typing
+            ui.toggleChatElements(false);
+            chatInput.focus();
         }
     }
 
@@ -547,9 +391,6 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
 
 // Initialize function that handles both popup and side panel
 function initializeUI(isSidePanel = false) {
-    console.log(`[UI] Initializing in ${isSidePanel ? 'side panel' : 'popup'} mode`);
-
-    // Add event listeners immediately, don't wait for DOMContentLoaded
     const elements = {
         openOptions: document.getElementById("open-options"),
         fetchTranscript: document.getElementById("fetch-current-transcript"),
@@ -560,7 +401,6 @@ function initializeUI(isSidePanel = false) {
         toggleSidePanel: document.getElementById("toggle-side-panel")
     };
 
-    // Bind handlers to preserve 'this' context
     const boundHandlers = {
         handleOpenSettings: handlers.handleOpenSettings.bind(handlers),
         handleFetchTranscript: handlers.handleFetchTranscript.bind(handlers),
@@ -580,3 +420,85 @@ function initializeUI(isSidePanel = false) {
     if (elements.viewSummaries) elements.viewSummaries.addEventListener("click", boundHandlers.handleViewSummaries);
     if (elements.toggleSidePanel) elements.toggleSidePanel.addEventListener("click", boundHandlers.handleToggleSidePanel);
 }
+
+// Add to the chat utilities section
+const chat = {
+    async handleStreamingAIResponse(aiSettings, prompt, messageElement) {
+        const response = await fetch(aiSettings.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: aiSettings.model,
+                prompt,
+                stream: true
+            })
+        });
+
+        const reader = response.body.getReader();
+        let accumulatedResponse = '';
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = new TextDecoder().decode(value);
+                const lines = chunk.split('\n').filter(line => line.trim());
+
+                for (const line of lines) {
+                    try {
+                        const json = JSON.parse(line);
+                        if (json.response) {
+                            accumulatedResponse += json.response;
+                            messageElement.innerHTML = `
+                                <div class="message-content">
+                                    ${markdownToHtml(accumulatedResponse)}
+                                </div>
+                            `;
+                            ui.autoScroll();
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse JSON:', e);
+                    }
+                }
+            }
+
+            return accumulatedResponse;
+        } catch (error) {
+            messageElement.innerHTML = `
+                <div class="error-message">
+                    Error: ${error.message}
+                </div>
+            `;
+            throw error;
+        }
+    },
+
+    formatConversationPrompt(history) {
+        return history.map(msg =>
+            msg.role === 'system' ? `System: ${msg.content}` :
+                msg.role === 'user' ? `Human: ${msg.content}` :
+                    `Assistant: ${msg.content}`
+        ).join('\n\n') + '\n\nAssistant:';
+    }
+};
+
+// Add to the UI utilities section
+const ui = {
+    toggleChatElements(loading = false) {
+        const chatInputContainer = document.querySelector('.chat-input-container');
+        const chatLoading = document.querySelector('#chat-loading');
+
+        chatInputContainer.classList.toggle('hidden', loading);
+        chatLoading.classList.toggle('hidden', !loading);
+    },
+
+    autoScroll(force = false) {
+        const element = document.getElementById("chat-messages");
+        const isUserScrolledUp = element.scrollHeight - element.clientHeight - element.scrollTop > CONSTANTS.UI.SCROLL_TOLERANCE;
+
+        if (!isUserScrolledUp || force) {
+            element.scrollTop = element.scrollHeight;
+        }
+    }
+};

@@ -4,41 +4,13 @@
     <meta charset="UTF-8">
     <title>YouTube Transcript</title>
     <link rel="stylesheet" href="style.css" />
-    <style>
-        body {
-            width: 100%;
-            min-width: 300px;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
-        }
-        .side-panel-container {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .summary-content {
-            padding: 1rem;
-            overflow-y: auto;
-            flex: 1;
-        }
-        #summary-area {
-            white-space: pre-wrap;
-            margin-top: 1rem;
-            line-height: 1.5;
-        }
-        #back-to-transcript {
-            font-size: 1.2em;
-        }
-    </style>
 </head>
 <body>
     <div class="side-panel-container">
         <header>
             <h1>YouTube Transcript</h1>
             <div class="header-buttons">
-                <button id="toggle-side-panel" class="settings-btn" title="Close Side Panel">⇦</button>
-                <button id="view-summaries" class="settings-btn" title="View Previous Summaries">📚</button>
+                <button id="toggle-side-panel" class="settings-btn" title="Switch to Popup">⇦</button>
                 <button id="open-options" class="settings-btn" title="Settings">⚙️</button>
             </div>
         </header>
@@ -53,6 +25,7 @@
             <button id="fetch-notifications" class="btn">Notification Transcripts</button>
         </div>
     </div>
+    <script src="constants.js"></script>
     <script src="templates.js"></script>
     <script src="markdown.js"></script>
     <script src="app.js"></script>

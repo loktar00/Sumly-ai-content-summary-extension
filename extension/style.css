@@ -31,7 +31,7 @@
     --transition-speed: 0.2s;
     --sidebar-width: 200px;
     --container-width: 300px;
-    --chat-max-height: 400px;
+    --chat-max-height: 75vh;
 }
 
 /* Base Styles */
@@ -57,10 +57,6 @@ body {
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-md);
-    padding: var(--spacing-md);
-}
-
-.main-content {
     padding: var(--spacing-md);
 }
 
@@ -167,9 +163,6 @@ h1 {
     overflow-y: auto;
     overflow-x: hidden;
     padding: var(--spacing-md);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    background-color: white;
 }
 
 .message {
@@ -191,7 +184,6 @@ h1 {
 }
 
 .chat-input-container {
-    display: flex;
     gap: var(--spacing-md);
     margin-top: var(--spacing-md);
 }
@@ -200,7 +192,7 @@ h1 {
     flex-grow: 1;
     margin: 0;
     resize: vertical;
-    max-height: 200px;
+    max-height: 6vh;
 }
 
 .chat-input-container .btn {
