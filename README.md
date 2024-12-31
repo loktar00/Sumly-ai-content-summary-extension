@@ -2,6 +2,11 @@
 
 A Chrome extension that fetches YouTube video transcripts and uses AI to provide summaries and answer questions about the content.
 
+## Example of it running
+
+https://github.com/user-attachments/assets/08d410ae-4742-407f-99c4-6d75fd962bfd
+
+
 ## Features
 
 - 🎥 Fetch transcripts from YouTube videos
@@ -41,6 +46,10 @@ A Chrome extension that fetches YouTube video transcripts and uses AI to provide
 4. Click "Summarize with AI" to generate a summary
 5. Ask follow-up questions in the chat interface
 6. Use the copy button to copy the transcript to your clipboard
+
+## Settings
+![image](https://github.com/user-attachments/assets/040c5a11-237e-4a77-8829-bf294aecd109)
+
 
 ## Development
 
