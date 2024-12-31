@@ -1,5 +1,3 @@
-console.log("YouTube Notifications Scraper Loaded");
-
 // Function to simulate clicking the Notifications button
 function autoClickNotifications() {
     const notificationsButton = document.querySelector('button[aria-label="Notifications"]');
