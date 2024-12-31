@@ -7,7 +7,6 @@ const CONSTANTS = {
         DEFAULT_NUM_CTX: 8000
     },
     DELAYS: {
-        NOTIFICATION: 3000,
         SAVE_MESSAGE: 2000
     },
     UI: {

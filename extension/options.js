@@ -1,8 +1,3 @@
-// State management
-const state = {
-    models: []
-};
-
 // Elements
 const elements = {
     modelSelect: document.getElementById("aiModel"),
@@ -66,7 +61,6 @@ const api = {
 
     updateModelsList(models) {
         elements.modelSelect.innerHTML = '';
-        state.models = models;
 
         models.forEach(model => {
             const option = document.createElement('option');
@@ -138,10 +132,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Load saved settings
     const aiUrlInput = document.getElementById('aiUrl');
-    const aiModelSelect = document.getElementById('aiModel');
-    const systemPromptArea = document.getElementById('systemPrompt');
-    const saveButton = document.getElementById('save');
-    const modelStatus = document.getElementById('model-status');
 
     // Set default URL if not already set
     const { aiUrl } = await chrome.storage.sync.get('aiUrl');
