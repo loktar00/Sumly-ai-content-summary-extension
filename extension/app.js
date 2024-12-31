@@ -285,7 +285,7 @@ const handlers = {
             let transcript = transcriptArea.value.trim();
 
             if (!transcript) {
-                await this.handleFetchTranscript();
+                await handlers.handleFetchTranscript();
                 transcript = transcriptArea.value.trim();
             }
 
