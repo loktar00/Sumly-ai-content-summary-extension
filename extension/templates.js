@@ -7,7 +7,7 @@ const templates = {
             <div class="main-content">
                 <div id="chat-container" class="chat-container" role="log" aria-live="polite">
                     <div id="chat-messages" class="chat-messages">
-                        <div id="formatted-summary" class="markdown-body message"></div>
+                        <div id="formatted-summary" class="markdown-body"></div>
                     </div>
                     <div id="chat-loading" class="chat-loading hidden">
                         <div class="neon-loader">
@@ -16,6 +16,10 @@ const templates = {
                             <div></div>
                             <div></div>
                             <div></div>
+                        </div>
+                        <div class="button-group loading-controls">
+                            <button id="cancel-generation" class="btn">← Back</button>
+                            <button id="stop-generation" class="btn danger-btn">Stop</button>
                         </div>
                     </div>
                     <div class="chat-input-container hidden">

@@ -226,11 +226,11 @@ const handlers = {
             try {
                 ui.toggleChatElements(true);
 
-                const aiMessage = document.createElement('div');
-                aiMessage.className = 'message assistant-message';
-                elements.formattedSummary.appendChild(aiMessage);
-
-                const response = await chat.handleStreamingAIResponse(aiSettings, transcript, aiMessage);
+                const response = await chat.handleStreamingAIResponse(
+                    aiSettings,
+                    transcript,
+                    elements.formattedSummary
+                );
 
                 state.conversationHistory.push(
                     { role: 'user', content: transcript },
@@ -368,10 +368,28 @@ function initializeUI() {
 
 // Add to the chat utilities section
 const chat = {
-    async handleStreamingAIResponse(aiSettings, prompt, messageElement) {
+    async handleStreamingAIResponse(aiSettings, prompt, parentElement) {
         try {
             const baseUrl = aiSettings.url;
             const endpoint = `${baseUrl}/api/chat`;
+            let abortController = new AbortController();
+
+            // Setup stop and cancel handlers
+            const stopBtn = document.getElementById('stop-generation');
+            const cancelBtn = document.getElementById('cancel-generation');
+
+            if (stopBtn) {
+                stopBtn.addEventListener('click', () => {
+                    abortController.abort();
+                });
+            }
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    abortController.abort();
+                    location.reload();
+                });
+            }
 
             const requestBody = {
                 model: aiSettings.model,
@@ -386,26 +404,21 @@ const chat = {
                 stream: true
             };
 
-            console.log('Request body:', requestBody);
-
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(requestBody),
+                signal: abortController.signal
             });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('Response error:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    errorText
-                });
                 throw new Error(`API request failed (${response.status}): ${errorText || response.statusText}`);
             }
 
             const reader = response.body.getReader();
             let accumulatedResponse = '';
+            let messageElement = null;
 
             try {
                 while (true) {
@@ -421,6 +434,12 @@ const chat = {
                         try {
                             const data = JSON.parse(line);
                             if (data.message?.content) {
+                                if (!messageElement) {
+                                    messageElement = document.createElement('div');
+                                    messageElement.className = 'message assistant-message';
+                                    parentElement.appendChild(messageElement);
+                                }
+
                                 accumulatedResponse += data.message.content;
                                 messageElement.innerHTML = markdownToHtml(accumulatedResponse);
                                 ui.autoScroll();
@@ -431,8 +450,17 @@ const chat = {
                     }
                 }
             } catch (error) {
-                console.error('Error reading stream:', error);
+                if (error.name === 'AbortError') {
+                    if (messageElement) {
+                        messageElement.innerHTML += '<p><em>Generation stopped by user.</em></p>';
+                    }
+                    return accumulatedResponse;
+                }
                 throw error;
+            } finally {
+                // Clean up event listeners
+                if (stopBtn) stopBtn.remove();
+                if (cancelBtn) cancelBtn.remove();
             }
 
             return accumulatedResponse;
@@ -452,9 +480,17 @@ const ui = {
     toggleChatElements(loading = false) {
         const chatInputContainer = document.querySelector('.chat-input-container');
         const chatLoading = document.querySelector('#chat-loading');
+        const loadingControls = document.querySelector('.loading-controls');
 
-        chatInputContainer.classList.toggle('hidden', loading);
-        chatLoading.classList.toggle('hidden', !loading);
+        if (loading) {
+            chatInputContainer.classList.add('hidden');
+            chatLoading.classList.remove('hidden');
+            if (loadingControls) loadingControls.classList.remove('hidden');
+        } else {
+            chatInputContainer.classList.remove('hidden');
+            chatLoading.classList.add('hidden');
+            if (loadingControls) loadingControls.classList.add('hidden');
+        }
     },
 
     autoScroll(force = false) {
