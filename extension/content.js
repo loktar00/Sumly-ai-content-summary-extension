@@ -3,7 +3,6 @@ function autoClickNotifications() {
     const notificationsButton = document.querySelector('button[aria-label="Notifications"]');
 
     if (notificationsButton) {
-        console.log("Clicking the Notifications button...");
         notificationsButton.click();
         return true;
     }

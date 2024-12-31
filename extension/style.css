@@ -306,7 +306,7 @@ textarea::-webkit-scrollbar-thumb:hover,
     font-size: var(--font-size-xs);
 }
 
-.error-text {
+.error-text  {
     color: var(--primary-color);
 }
 
