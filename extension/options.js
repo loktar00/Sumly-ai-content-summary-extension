@@ -1,15 +1,3 @@
-// Constants
-const CONSTANTS = {
-    API: {
-        DEFAULT_AI_URL: "http://localhost:11434",
-        DEFAULT_MODEL: "mistral",
-        DEFAULT_SYSTEM_PROMPT: "You are a helpful AI assistant. Please provide concise, unbiased summaries and responses. Focus on the main points and key information."
-    },
-    DELAYS: {
-        SAVE_MESSAGE: 2000
-    }
-};
-
 // State management
 const state = {
     models: []
@@ -21,8 +9,8 @@ const elements = {
     modelStatus: document.getElementById("model-status"),
     statusText: document.getElementById("status"),
     aiUrlInput: document.getElementById("aiUrl"),
-    apiUrlInput: document.getElementById("apiUrl"),
     systemPromptInput: document.getElementById("systemPrompt"),
+    numCtxInput: document.getElementById("numCtx"),
     saveButton: document.getElementById("save"),
     fetchModelsButton: document.getElementById("fetch-models")
 };
@@ -38,10 +26,10 @@ const utils = {
 
     async saveSettings() {
         const settings = {
-            apiUrl: elements.apiUrlInput.value,
             aiUrl: elements.aiUrlInput.value,
             aiModel: elements.modelSelect.value,
-            systemPrompt: elements.systemPromptInput.value
+            systemPrompt: elements.systemPromptInput.value,
+            numCtx: parseInt(elements.numCtxInput.value) || CONSTANTS.API.DEFAULT_NUM_CTX
         };
 
         await chrome.storage.sync.set(settings);
@@ -122,16 +110,16 @@ const handlers = {
 // Initialization
 async function initializeSettings() {
     const settings = await chrome.storage.sync.get([
-        "apiUrl",
         "aiUrl",
         "aiModel",
-        "systemPrompt"
+        "systemPrompt",
+        "numCtx"
     ]);
 
     // Set default values or stored values
-    elements.apiUrlInput.value = settings.apiUrl || '';
     elements.aiUrlInput.value = settings.aiUrl || CONSTANTS.API.DEFAULT_AI_URL;
     elements.systemPromptInput.value = settings.systemPrompt || CONSTANTS.API.DEFAULT_SYSTEM_PROMPT;
+    elements.numCtxInput.value = settings.numCtx || CONSTANTS.API.DEFAULT_NUM_CTX;
 
     // Fetch and set models
     if (settings.aiUrl) {
@@ -143,8 +131,19 @@ async function initializeSettings() {
 }
 
 // Initialize event listeners
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     initializeSettings();
     elements.saveButton.addEventListener("click", handlers.handleSave);
     elements.fetchModelsButton.addEventListener("click", handlers.handleFetchModels);
+
+    // Load saved settings
+    const aiUrlInput = document.getElementById('aiUrl');
+    const aiModelSelect = document.getElementById('aiModel');
+    const systemPromptArea = document.getElementById('systemPrompt');
+    const saveButton = document.getElementById('save');
+    const modelStatus = document.getElementById('model-status');
+
+    // Set default URL if not already set
+    const { aiUrl } = await chrome.storage.sync.get('aiUrl');
+    aiUrlInput.value = aiUrl || 'http://localhost:11434';  // Default Ollama URL
 });

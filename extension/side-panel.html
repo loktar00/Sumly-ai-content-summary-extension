@@ -3,28 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <title>YouTube Transcript</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="popup-container">
+    <div class="side-panel-container">
         <header>
-            <h1>YouTube Transcript</h1>
+            <h1>YouTube Transcript Fetcher</h1>
             <div class="header-buttons">
-                <button id="view-summaries" class="settings-btn" title="View Previous Summaries">📚</button>
                 <button id="open-options" class="settings-btn" title="Settings">⚙️</button>
             </div>
         </header>
-        <div class="popup-content">
+        <div class="panel-content" id="panel-content">
             <button id="summarize-transcript" class="btn ai-btn">Summarize with AI</button>
-            <textarea id="transcript-area" rows="10" cols="50" placeholder="Transcript will appear here..."></textarea>
+            <textarea id="transcript-area" rows="5" cols="50" placeholder="Transcript will appear here..."></textarea>
             <div class="button-group">
                 <button id="fetch-current-transcript" class="btn">Get Transcript</button>
                 <button id="copy-to-clipboard" class="btn">Copy to Clipboard</button>
             </div>
-            <hr/>
-            <button id="fetch-notifications" class="btn">Notification Transcripts</button>
         </div>
     </div>
-    <script src="popup.js"></script>
+    <script src="constants.js"></script>
+    <script src="templates.js"></script>
+    <script src="markdown.js"></script>
+    <script src="app.js"></script>
+    <script src="side-panel-init.js"></script>
 </body>
 </html>
