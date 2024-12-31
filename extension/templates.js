@@ -8,15 +8,16 @@ const templates = {
                         <div id="formatted-summary" class="markdown-body message"></div>
                     </div>
                     <div id="chat-loading" class="chat-loading hidden">
-                        <div class="typing-indicator">
-                            <span></span>
-                            <span></span>
-                            <span></span>
+                        <div class="neon-loader">
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
                         </div>
                     </div>
                     <div class="chat-input-container hidden">
                         <textarea id="chat-input" rows="3" placeholder="Ask a question about the transcript..."></textarea>
-                        <br/>
                         <button id="send-message" class="btn">Send</button>
                     </div>
                 </div>

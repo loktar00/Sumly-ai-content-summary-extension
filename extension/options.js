@@ -9,7 +9,6 @@ const elements = {
     modelStatus: document.getElementById("model-status"),
     statusText: document.getElementById("status"),
     aiUrlInput: document.getElementById("aiUrl"),
-    apiUrlInput: document.getElementById("apiUrl"),
     systemPromptInput: document.getElementById("systemPrompt"),
     saveButton: document.getElementById("save"),
     fetchModelsButton: document.getElementById("fetch-models")
@@ -26,7 +25,6 @@ const utils = {
 
     async saveSettings() {
         const settings = {
-            apiUrl: elements.apiUrlInput.value,
             aiUrl: elements.aiUrlInput.value,
             aiModel: elements.modelSelect.value,
             systemPrompt: elements.systemPromptInput.value
@@ -110,14 +108,12 @@ const handlers = {
 // Initialization
 async function initializeSettings() {
     const settings = await chrome.storage.sync.get([
-        "apiUrl",
         "aiUrl",
         "aiModel",
         "systemPrompt"
     ]);
 
     // Set default values or stored values
-    elements.apiUrlInput.value = settings.apiUrl || '';
     elements.aiUrlInput.value = settings.aiUrl || CONSTANTS.API.DEFAULT_AI_URL;
     elements.systemPromptInput.value = settings.systemPrompt || CONSTANTS.API.DEFAULT_SYSTEM_PROMPT;
 
