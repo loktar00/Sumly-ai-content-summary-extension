@@ -29,6 +29,19 @@
                 <textarea id="systemPrompt" rows="4" placeholder="Enter your default system prompt here...">You are a helpful AI assistant. Please provide concise, unbiased summaries and responses. Focus on the main points and key information.</textarea>
             </div>
 
+            <div class="setting-group">
+                <label for="numCtx">Context Window Size:</label>
+                <input
+                    type="number"
+                    id="numCtx"
+                    min="1000"
+                    max="128000"
+                    step="1000"
+                    placeholder="Enter context window size (default: 8000)"
+                />
+                <p class="help-text">Number of tokens the model can process at once. Higher values allow for longer conversations but use more memory.</p>
+            </div>
+
             <button id="save" class="btn">Save</button>
             <p id="status"></p>
         </div>

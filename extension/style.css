@@ -37,7 +37,7 @@
     --transition-speed: 0.2s;
     --sidebar-width: 200px;
     --container-width: 300px;
-    --chat-max-height: 75vh;
+    --chat-max-height: 70vh;
 }
 
 /* Base Styles */
@@ -175,7 +175,7 @@ h1 {
 
 .message {
     color: #ffffff;
-    margin-bottom: var(--spacing-lg);
+    margin-top: var(--spacing-lg);
     padding: var(--spacing-md);
     border-radius: var(--border-radius);
     line-height: 1.6;
@@ -284,6 +284,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 /* Settings Groups */
 .setting-group {
     margin: var(--spacing-lg) 0;
+    color: #fff;
     text-align: left;
     width: 80%;
     display: flex;
@@ -482,4 +483,18 @@ hr {
     75% {
         width: 100px;
     }
+}
+
+/* Model Label */
+.model-label {
+    background-color: var(--message-bg-ai);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--ai-accent-color);
+    font-size: var(--font-size-sm);
+}
+
+.model-label .glow.text {
+    color: var(--ai-accent-color);
 }

@@ -113,10 +113,16 @@ const api = {
     },
 
     async getAiSettings() {
-        const { aiUrl, aiModel } = await chrome.storage.sync.get(["aiUrl", "aiModel"]);
+        const { aiUrl, aiModel, numCtx } = await chrome.storage.sync.get([
+            "aiUrl",
+            "aiModel",
+            "numCtx"
+        ]);
+
         return {
-            url: `${aiUrl || CONSTANTS.API.DEFAULT_AI_URL}/api/generate`,
-            model: aiModel || CONSTANTS.API.DEFAULT_AI_MODEL
+            url: `${aiUrl || CONSTANTS.API.DEFAULT_AI_URL}`,
+            model: aiModel || CONSTANTS.API.DEFAULT_AI_MODEL,
+            numCtx: numCtx || CONSTANTS.API.DEFAULT_NUM_CTX
         };
     },
 
@@ -137,25 +143,7 @@ const api = {
             console.error(`Network error for ${videoTitle}:`, error);
             return false;
         }
-    },
-
-    async processVideosSequentially() {
-        for (state.currentIndex = 0; state.currentIndex < state.videos.length; state.currentIndex++) {
-            const video = state.videos[state.currentIndex];
-            const videoId = utils.extractVideoId(video.url);
-
-            if (!videoId) {
-                console.error(`Invalid video URL: ${video.url}`);
-                continue;
-            }
-
-            console.log(`Processing (${state.currentIndex + 1}/${state.videos.length}): ${video.title}`);
-            await api.sendVideoToServer(videoId, video.title);
-        }
-
-        alert("All videos have been processed!");
     }
-
 };
 
 // Event handlers
@@ -192,10 +180,18 @@ const handlers = {
             if (!container) return;
 
             const videoTitle = await utils.getVideoTitle(await utils.getCurrentVideoId());
+            const aiSettings = await api.getAiSettings();
+            const systemPrompt = await api.getSystemPrompt();
+
+            // Initialize conversation history
+            state.conversationHistory = [
+                { role: 'system', content: systemPrompt }
+            ];
 
             // Render the summary template
             container.innerHTML = renderTemplate('summary', {
                 title: videoTitle,
+                model: aiSettings.model,
                 transcript
             });
 
@@ -230,26 +226,16 @@ const handlers = {
             try {
                 ui.toggleChatElements(true);
 
-                const aiSettings = await api.getAiSettings();
-                const systemPrompt = await api.getSystemPrompt();
-
-                // Initialize conversation history
-                state.conversationHistory = [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: transcript }
-                ];
-
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant-message';
                 elements.formattedSummary.appendChild(aiMessage);
 
-                const prompt = chat.formatConversationPrompt(state.conversationHistory);
-                const response = await chat.handleStreamingAIResponse(aiSettings, prompt, aiMessage);
+                const response = await chat.handleStreamingAIResponse(aiSettings, transcript, aiMessage);
 
-                state.conversationHistory.push({
-                    role: 'assistant',
-                    content: response
-                });
+                state.conversationHistory.push(
+                    { role: 'user', content: transcript },
+                    { role: 'assistant', content: response }
+                );
 
                 ui.toggleChatElements(false);
 
@@ -283,22 +269,6 @@ const handlers = {
         } catch (error) {
             alert(`Failed to copy text to clipboard. ${error.message}`);
         }
-    },
-
-    async handleFetchNotifications() {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        chrome.tabs.sendMessage(tabs[0].id, { action: "fetch_notifications" }, async () => {
-            setTimeout(async () => {
-                const { videos } = await chrome.storage.local.get("videos");
-                if (videos?.length) {
-                    state.videos = videos;
-                    state.currentIndex = 0;
-                    await api.processVideosSequentially();
-                } else {
-                    alert("No videos found to process.");
-                }
-            }, CONSTANTS.DELAYS.NOTIFICATION);
-        });
     },
 
     async handleViewSummaries() {
@@ -385,7 +355,6 @@ function initializeUI() {
         handleFetchTranscript: handlers.handleFetchTranscript.bind(handlers),
         handleCopyToClipboard: handlers.handleCopyToClipboard.bind(handlers),
         handleSummarize: handlers.handleSummarize.bind(handlers),
-        handleFetchNotifications: handlers.handleFetchNotifications.bind(handlers),
         handleViewSummaries: handlers.handleViewSummaries.bind(handlers),
     };
 
@@ -394,69 +363,87 @@ function initializeUI() {
     if (elements.fetchTranscript) elements.fetchTranscript.addEventListener("click", boundHandlers.handleFetchTranscript);
     if (elements.copyClipboard) elements.copyClipboard.addEventListener("click", boundHandlers.handleCopyToClipboard);
     if (elements.summarize) elements.summarize.addEventListener("click", boundHandlers.handleSummarize);
-    if (elements.fetchNotifications) elements.fetchNotifications.addEventListener("click", boundHandlers.handleFetchNotifications);
     if (elements.viewSummaries) elements.viewSummaries.addEventListener("click", boundHandlers.handleViewSummaries);
 }
 
 // Add to the chat utilities section
 const chat = {
     async handleStreamingAIResponse(aiSettings, prompt, messageElement) {
-        const response = await fetch(aiSettings.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: aiSettings.model,
-                prompt,
-                stream: true
-            })
-        });
-
-        const reader = response.body.getReader();
-        let accumulatedResponse = '';
-
         try {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+            const baseUrl = aiSettings.url;
+            const endpoint = `${baseUrl}/api/chat`;
 
-                const chunk = new TextDecoder().decode(value);
-                const lines = chunk.split('\n').filter(line => line.trim());
+            const requestBody = {
+                model: aiSettings.model,
+                messages: [
+                    ...state.conversationHistory,
+                    { role: 'user', content: prompt }
+                ],
+                options: {
+                    temperature: 0.8,
+                    num_ctx: aiSettings.numCtx,
+                },
+                stream: true
+            };
 
-                for (const line of lines) {
-                    try {
-                        const json = JSON.parse(line);
-                        if (json.response) {
-                            accumulatedResponse += json.response;
-                            messageElement.innerHTML = `
-                                <div class="message-content">
-                                    ${markdownToHtml(accumulatedResponse)}
-                                </div>
-                            `;
-                            ui.autoScroll();
+            console.log('Request body:', requestBody);
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Response error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorText
+                });
+                throw new Error(`API request failed (${response.status}): ${errorText || response.statusText}`);
+            }
+
+            const reader = response.body.getReader();
+            let accumulatedResponse = '';
+
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = new TextDecoder().decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+
+                        try {
+                            const data = JSON.parse(line);
+                            if (data.message?.content) {
+                                accumulatedResponse += data.message.content;
+                                messageElement.innerHTML = markdownToHtml(accumulatedResponse);
+                                ui.autoScroll();
+                            }
+                        } catch (e) {
+                            console.error('Error parsing JSON:', e);
                         }
-                    } catch (e) {
-                        console.warn('Failed to parse JSON:', e);
                     }
                 }
+            } catch (error) {
+                console.error('Error reading stream:', error);
+                throw error;
             }
 
             return accumulatedResponse;
         } catch (error) {
-            messageElement.innerHTML = `
-                <div class="error-message">
-                    Error: ${error.message}
-                </div>
-            `;
+            console.error('Error in handleStreamingAIResponse:', error);
             throw error;
         }
     },
 
     formatConversationPrompt(history) {
-        return history.map(msg =>
-            msg.role === 'system' ? `System: ${msg.content}` :
-                msg.role === 'user' ? `Human: ${msg.content}` :
-                    `Assistant: ${msg.content}`
-        ).join('\n\n') + '\n\nAssistant:';
+        return history; // Keep this for compatibility
     }
 };
 
