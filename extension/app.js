@@ -411,6 +411,9 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
                 ${markdownToHtml(message)}
             </div>
         `;
+
+        ui.autoScroll(true);
+
         formattedSummary.appendChild(userMessage);
 
         chatInput.value = '';
@@ -426,7 +429,6 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
 
             // Create and append AI message element
             const aiMessage = document.createElement('div');
-            aiMessage.className = 'message assistant-message';
             formattedSummary.appendChild(aiMessage);
 
             // Send just the message, not the whole conversation history
