@@ -413,22 +413,28 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
         `;
         formattedSummary.appendChild(userMessage);
 
-        const aiMessage = document.createElement('div');
-        aiMessage.className = 'message assistant-message';
-        formattedSummary.appendChild(aiMessage);
-
         chatInput.value = '';
         ui.toggleChatElements(true);
         ui.autoScroll(true);
 
         try {
+            // Add user message to conversation history
             state.conversationHistory.push({
                 role: 'user',
                 content: message
             });
 
-            const prompt = state.conversationHistory;
-            const response = await chat.handleStreamingAIResponse(aiSettings, prompt, aiMessage);
+            // Create and append AI message element
+            const aiMessage = document.createElement('div');
+            aiMessage.className = 'message assistant-message';
+            formattedSummary.appendChild(aiMessage);
+
+            // Send just the message, not the whole conversation history
+            const response = await chat.handleStreamingAIResponse(
+                aiSettings,
+                message,  // Send only the latest message
+                aiMessage
+            );
 
             state.conversationHistory.push({
                 role: 'assistant',
