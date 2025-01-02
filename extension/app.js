@@ -178,7 +178,9 @@ const chat = {
             try {
                 while (true) {
                     const { done, value } = await reader.read();
-                    if (done) break;
+                    if (done) {
+                        break;
+                    }
 
                     const chunk = new TextDecoder().decode(value);
                     const lines = chunk.split('\n');
@@ -209,18 +211,10 @@ const chat = {
                     if (messageElement) {
                         messageElement.innerHTML += '<p><em>Generation stopped by user.</em></p>';
                     }
+
                     return accumulatedResponse;
                 }
                 throw error;
-            } finally {
-                // Clean up event listeners
-                if (stopBtn) {
-                    stopBtn.remove();
-                }
-
-                if (cancelBtn) {
-                    cancelBtn.remove();
-                }
             }
 
             return accumulatedResponse;
@@ -241,11 +235,16 @@ const ui = {
         if (loading) {
             chatInputContainer.classList.add('hidden');
             chatLoading.classList.remove('hidden');
-            if (loadingControls) loadingControls.classList.remove('hidden');
+            if (loadingControls) {
+                loadingControls.classList.remove('hidden');
+            }
         } else {
             chatInputContainer.classList.remove('hidden');
             chatLoading.classList.add('hidden');
-            if (loadingControls) loadingControls.classList.add('hidden');
+
+            if (loadingControls) {
+                loadingControls.classList.add('hidden');
+            }
         }
     },
 
@@ -330,7 +329,7 @@ const handlers = {
             // Add transcript as first message
             elements.formattedSummary.innerHTML = `
                 <div class="message user-message">
-                    <div class="message-content">
+                    <div>
                         ${markdownToHtml(transcript)}
                     </div>
                 </div>
@@ -368,6 +367,7 @@ const handlers = {
                         Error generating summary: ${error.message}
                     </div>
                 `;
+                ui.toggleChatElements(false);
                 ui.autoScroll(true);
             }
         } catch (error) {
@@ -407,7 +407,7 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
         const userMessage = document.createElement('div');
         userMessage.className = 'message user-message';
         userMessage.innerHTML = `
-            <div class="message-content">
+            <div>
                 ${markdownToHtml(message)}
             </div>
         `;
