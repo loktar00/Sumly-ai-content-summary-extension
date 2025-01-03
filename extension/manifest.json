@@ -14,7 +14,8 @@
         "https://www.youtube.com/*",
         "https://*.youtube.com/*",
         "http://*:11434/*",
-        "https://*:11434/*"
+        "https://*:11434/*",
+        "<all_urls>"
     ],
     "action": {
         "default_title": "YouTube Transcript"

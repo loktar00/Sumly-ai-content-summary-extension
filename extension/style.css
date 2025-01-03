@@ -267,6 +267,7 @@ h1 {
     border-radius: var(--border-radius);
     line-height: 1.6;
     transform-origin: center left;
+    word-break: break-word;
 }
 
 .user-message {
@@ -527,4 +528,15 @@ hr {
 
 .model-label .glow.text {
     color: var(--ai-accent-color);
+}
+
+.source-buttons {
+    width: 100%;
+    justify-content: center;
+    gap: var(--spacing-md);
+}
+
+.source-buttons .btn {
+    flex: 1;
+    max-width: 45%;
 }

@@ -92,6 +92,53 @@ const utils = {
             console.error('Error fetching transcript:', error);
             throw new Error(`Failed to fetch transcript: ${error.message}`);
         }
+    },
+
+    async getPageContent() {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (!tab?.id) {
+            throw new Error('No active tab found');
+        }
+
+        // Inject and execute content script
+        const [{ result }] = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+                // Create a clone of the document
+                const virtualDoc = document.cloneNode(true);
+                const virtualBody = virtualDoc.querySelector('body');
+
+                if (!virtualBody) {
+                    return document.body.innerText;
+                }
+
+                // Remove unwanted elements from the clone
+                const elementsToRemove = virtualBody.querySelectorAll(
+                    'script, style, noscript, img, svg, video, audio, nav, footer, header, aside'
+                );
+                elementsToRemove.forEach(el => el.remove());
+
+                let innerText = '';
+
+                const main = virtualBody.querySelector('main');
+                if (main) {
+                    innerText += main.innerText;
+                }
+
+                innerText += virtualBody.innerText;
+
+                // Clean up multiple line breaks
+                return innerText
+                    .replace(/\n\s*\n\s*\n/g, '\n\n')  // Replace 3+ line breaks with 2
+                    .replace(/\s+/g, ' ')               // Replace multiple spaces with single space
+                    .replace(/\n +/g, '\n')             // Remove spaces at start of lines
+                    .replace(/ +\n/g, '\n')             // Remove spaces at end of lines
+                    .trim();                            // Remove leading/trailing whitespace
+            }
+        });
+
+        return result;
     }
 };
 
@@ -391,6 +438,18 @@ const handlers = {
             width: 500,  // Smaller width for settings
             height: 700
         });
+    },
+
+    async handleFetchWebpage() {
+        const transcriptArea = document.getElementById("transcript-area");
+
+        try {
+            transcriptArea.value = "Fetching page content...";
+            const content = await utils.getPageContent();
+            transcriptArea.value = content.trim();
+        } catch (error) {
+            transcriptArea.value = `Error fetching page content: ${error.message}`;
+        }
     }
 };
 
@@ -466,12 +525,14 @@ function initializeUI() {
     const elements = {
         openOptions: document.getElementById("open-options"),
         fetchTranscript: document.getElementById("fetch-current-transcript"),
+        fetchWebpage: document.getElementById("fetch-webpage"),
         copyClipboard: document.getElementById("copy-to-clipboard"),
         summarize: document.getElementById("summarize-transcript")
     };
 
     elements.openOptions?.addEventListener("click", handlers.handleOpenSettings);
     elements.fetchTranscript?.addEventListener("click", handlers.handleFetchTranscript);
+    elements.fetchWebpage?.addEventListener("click", handlers.handleFetchWebpage);
     elements.copyClipboard?.addEventListener("click", handlers.handleCopyToClipboard);
     elements.summarize?.addEventListener("click", handlers.handleSummarize);
 }
