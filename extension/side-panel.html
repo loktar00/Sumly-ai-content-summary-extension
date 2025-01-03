@@ -13,18 +13,22 @@
         <header>
             <h1>Web Content Assistant</h1>
             <div class="header-buttons">
+                <button id="manage-prompts" class="settings-btn" title="Manage Prompts">📝</button>
                 <button id="open-options" class="settings-btn" title="Settings">⚙️</button>
             </div>
         </header>
         <div class="panel-content" id="panel-content">
+            <div class="prompt-selector">
+                <select id="prompt-selector">
+                    <option value="default">Default System Prompt</option>
+                </select>
+            </div>
+            <textarea id="system-prompt" rows="6" cols="50" placeholder="System Prompt"></textarea>
             <button id="summarize-transcript" class="btn ai-btn">Summarize Page with AI</button>
+            <textarea id="transcript-area" rows="5" cols="50" placeholder="Content will appear here..."></textarea>
             <div class="button-group source-buttons">
                 <button id="fetch-webpage" class="btn">Get Page Content</button>
                 <button id="fetch-current-transcript" class="btn">Get Transcript</button>
-            </div>
-            <textarea id="system-prompt" rows="3" cols="50" placeholder="System Prompt"></textarea>
-            <textarea id="transcript-area" rows="5" cols="50" placeholder="Content will appear here..."></textarea>
-            <div class="button-group">
                 <button id="copy-to-clipboard" class="btn">Copy to Clipboard</button>
             </div>
         </div>

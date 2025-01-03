@@ -5,6 +5,16 @@ const state = {
 // Utility functions
 const utils = {
 
+    async getCurrentUrl() {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (!tabs[0]?.url) {
+            return null;
+        }
+
+        return tabs[0].url;
+    },
+
     async getCurrentVideoId() {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tabs[0]?.url) return null;
@@ -317,6 +327,50 @@ const ui = {
                 });
             });
         }
+    },
+
+    async loadPromptSelector() {
+        const selector = document.getElementById('prompt-selector');
+        const systemPromptArea = document.getElementById('system-prompt');
+
+        if (!selector || !systemPromptArea) {
+            return;
+        }
+
+        // Get current URL
+        const currentUrl = await utils.getCurrentUrl();
+
+        if (!currentUrl) {
+            return;
+        }
+
+        // Get all saved prompts
+        const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+
+        // Clear existing options
+        selector.innerHTML = '<option value="default">Default System Prompt</option>';
+
+        // Add saved prompts as options
+        Object.entries(savedPrompts).forEach(([pattern, ]) => {
+            const option = document.createElement('option');
+            option.value = pattern;
+            option.textContent = pattern;
+            selector.appendChild(option);
+        });
+
+        // Find best matching pattern and select it in dropdown
+        const bestMatch = promptManager.findBestMatchForUrl(
+            currentUrl,
+            Object.keys(savedPrompts)
+        );
+
+        if (bestMatch) {
+            selector.value = bestMatch;
+            systemPromptArea.value = savedPrompts[bestMatch];
+        } else {
+            selector.value = 'default';
+            systemPromptArea.value = await api.getSystemPrompt();
+        }
     }
 };
 
@@ -357,9 +411,10 @@ const handlers = {
             const transcriptArea = document.getElementById("transcript-area");
             const systemPromptArea = document.getElementById("system-prompt");
             let transcript = transcriptArea.value.trim();
+
             // Check if we're on YouTube
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            const isYouTube = tab?.url?.includes('youtube.com/watch');
+            const currentUrl = await utils.getCurrentUrl();
+            const isYouTube = currentUrl?.includes('youtube.com/watch');
 
             if (!transcript) {
                 if (isYouTube) {
@@ -375,7 +430,7 @@ const handlers = {
                 return;
             }
 
-            let pageTitle = tab?.title || 'Page Content';
+            let pageTitle = currentUrl?.title || 'Page Content';
 
             if (isYouTube) {
                 pageTitle = await utils.getVideoTitle(await utils.getCurrentVideoId());
@@ -383,7 +438,7 @@ const handlers = {
 
             const aiSettings = await api.getAiSettings();
 
-            // Initialize conversation history with current system prompt
+            // Initialize conversation history with current textarea content
             state.conversationHistory = [
                 { role: 'system', content: systemPromptArea.value }
             ];
@@ -478,6 +533,35 @@ const handlers = {
             height: 700
         });
     },
+
+    async handleManagePrompts() {
+        const container = document.querySelector('#panel-content');
+        if (!container) {
+            return;
+        }
+
+        // Save current content to restore later if needed
+        const previousContent = container.innerHTML;
+
+        // Render prompt manager
+        container.innerHTML = renderTemplate('promptManager', {});
+
+        // Initialize prompt manager
+        initializePromptManager();
+
+        // Add back button
+        const backBtn = document.createElement('button');
+        backBtn.className = 'btn';
+        backBtn.textContent = '← Back';
+        backBtn.addEventListener('click', () => {
+            container.innerHTML = previousContent;
+            initializeUI(); // Reinitialize main UI
+        });
+
+        // Insert back button at the top
+        const promptManager = container.querySelector('.prompt-manager');
+        promptManager.insertBefore(backBtn, promptManager.firstChild);
+    }
 };
 
 // Updated chat handlers to support streaming and markdown
@@ -551,18 +635,115 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
 function initializeUI() {
     const elements = {
         openOptions: document.getElementById("open-options"),
+        managePrompts: document.getElementById("manage-prompts"),
         fetchTranscript: document.getElementById("fetch-current-transcript"),
         fetchWebpage: document.getElementById("fetch-webpage"),
         copyClipboard: document.getElementById("copy-to-clipboard"),
-        summarize: document.getElementById("summarize-transcript")
+        summarize: document.getElementById("summarize-transcript"),
+        promptSelector: document.getElementById("prompt-selector"),
+        systemPrompt: document.getElementById("system-prompt")
     };
 
+    // Main button handlers
     elements.openOptions?.addEventListener("click", handlers.handleOpenSettings);
+    elements.managePrompts?.addEventListener("click", handlers.handleManagePrompts);
     elements.fetchTranscript?.addEventListener("click", handlers.handleFetchTranscript);
     elements.fetchWebpage?.addEventListener("click", handlers.handleFetchWebpage);
     elements.copyClipboard?.addEventListener("click", handlers.handleCopyToClipboard);
     elements.summarize?.addEventListener("click", handlers.handleSummarize);
 
-    // Load system prompt
+    // Prompt selector handler - only updates textarea content
+    if (elements.promptSelector && elements.systemPrompt) {
+        elements.promptSelector.addEventListener('change', async () => {
+            const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+            const defaultPrompt = await api.getSystemPrompt();
+
+            const selectedPattern = elements.promptSelector.value;
+            elements.systemPrompt.value = selectedPattern === 'default'
+                ? defaultPrompt
+                : savedPrompts[selectedPattern];
+        });
+    }
+
+    // Load initial prompts and system prompt
     ui.loadSystemPrompt();
+    ui.loadPromptSelector();
+}
+
+const promptManager = {
+    async savePrompt(pattern, prompt) {
+        const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+        // Remove www. from pattern if present
+        const cleanPattern = pattern.replace(/^www\./, '');
+        savedPrompts[cleanPattern] = prompt;
+        await chrome.storage.sync.set({ savedPrompts });
+    },
+
+    findBestMatchForUrl(url, patterns) {
+        // Sort patterns by length (longest first) and find first match
+        return patterns
+            .sort((a, b) => b.length - a.length)
+            .find(pattern => url.includes(pattern));
+    }
+};
+
+async function loadPrompts() {
+    const promptsList = document.getElementById('prompts-list');
+    const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+
+    promptsList.innerHTML = Object.entries(savedPrompts)
+        .map(([pattern, content]) => renderTemplate('promptItem', { pattern, content }))
+        .join('');
+}
+
+function initializePromptManager() {
+    const saveBtn = document.getElementById('save-prompt');
+    const useCurrentUrlBtn = document.getElementById('use-current-url');
+    const patternInput = document.getElementById('prompt-pattern');
+    const promptContent = document.getElementById('prompt-content');
+    const promptsList = document.getElementById('prompts-list');
+
+    useCurrentUrlBtn?.addEventListener('click', async () => {
+        const url = await utils.getCurrentUrl();
+        patternInput.value = url;
+    });
+
+    saveBtn?.addEventListener('click', async () => {
+        const pattern = patternInput.value.trim();
+        const content = promptContent.value.trim();
+
+        if (!pattern || !content) {
+            return;
+        }
+
+        await promptManager.savePrompt(pattern, content);
+        await loadPrompts();
+
+        patternInput.value = '';
+        promptContent.value = '';
+    });
+
+    promptsList?.addEventListener('click', async (e) => {
+        const action = e.target.dataset.action;
+        const pattern = e.target.dataset.pattern;
+        const content = e.target.dataset.content;
+
+        if (!action || !pattern) {
+            return;
+        }
+
+        if (action === 'edit') {
+            patternInput.value = pattern;
+            promptContent.value = content;
+        }
+
+        if (action === 'delete') {
+            const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+            delete savedPrompts[pattern];
+            await chrome.storage.sync.set({ savedPrompts });
+            await loadPrompts();
+        }
+    });
+
+    loadPrompts();
 }
