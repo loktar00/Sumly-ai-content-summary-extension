@@ -1,6 +1,6 @@
-# YouTube Transcript AI Assistant
+# AI Content Assistant
 
-A Chrome extension that fetches YouTube video transcripts and uses AI to provide summaries and answer questions about the content.
+A Chrome extension that helps analyze and discuss content from any webpage or YouTube video using AI.
 
 ## Example extension in action
 
@@ -8,11 +8,14 @@ https://github.com/user-attachments/assets/3fd1d773-f416-4ffd-8308-5cad147676f8
 
 ## Features
 
+- 🌐 Extract and analyze content from any webpage
 - 🎥 Fetch transcripts from YouTube videos
 - 🤖 Generate AI summaries using Ollama
-- 💬 Ask follow-up questions about the video content
-- ⚙️ Configurable AI model settings
+- 💬 Interactive chat interface for follow-up questions
 - 🎨 Dark mode interface with cyberpunk-inspired design
+- ⚙️ Configurable AI model settings
+- 📝 Customizable system prompts
+- 📋 Easy content copying
 
 ## Requirements
 
@@ -39,16 +42,22 @@ https://github.com/user-attachments/assets/3fd1d773-f416-4ffd-8308-5cad147676f8
 
 ## Usage
 
+### For Any Webpage
+1. Navigate to any webpage
+2. Click the extension icon to open the side panel
+3. Click "Get Page Content" to extract the main content
+4. Click "Summarize Page with AI" to generate a summary
+5. Ask follow-up questions in the chat interface
+
+### For YouTube Videos
 1. Navigate to any YouTube video
 2. Click the extension icon to open the side panel
 3. Click "Get Transcript" to fetch the video transcript
-4. Click "Summarize with AI" to generate a summary
+4. Click "Summarize Page with AI" to generate a summary
 5. Ask follow-up questions in the chat interface
-6. Use the copy button to copy the transcript to your clipboard
 
 ## Settings
 ![image](https://github.com/user-attachments/assets/040c5a11-237e-4a77-8829-bf294aecd109)
-
 
 ## Development
 
