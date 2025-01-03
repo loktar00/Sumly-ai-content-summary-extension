@@ -5,6 +5,16 @@ const state = {
 // Utility functions
 const utils = {
 
+    async getCurrentUrl() {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+
+        if (!tabs[0]?.url) {
+            return null;
+        }
+
+        return tabs[0].url;
+    },
+
     async getCurrentVideoId() {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tabs[0]?.url) return null;
@@ -328,8 +338,7 @@ const ui = {
         }
 
         // Get current URL
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const currentUrl = tab?.url;
+        const currentUrl = await utils.getCurrentUrl();
 
         if (!currentUrl) {
             return;
@@ -404,8 +413,8 @@ const handlers = {
             let transcript = transcriptArea.value.trim();
 
             // Check if we're on YouTube
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            const isYouTube = tab?.url?.includes('youtube.com/watch');
+            const currentUrl = await utils.getCurrentUrl();
+            const isYouTube = currentUrl?.includes('youtube.com/watch');
 
             if (!transcript) {
                 if (isYouTube) {
@@ -421,7 +430,7 @@ const handlers = {
                 return;
             }
 
-            let pageTitle = tab?.title || 'Page Content';
+            let pageTitle = currentUrl?.title || 'Page Content';
 
             if (isYouTube) {
                 pageTitle = await utils.getVideoTitle(await utils.getCurrentVideoId());
@@ -689,15 +698,23 @@ async function loadPrompts() {
 
 function initializePromptManager() {
     const saveBtn = document.getElementById('save-prompt');
+    const useCurrentUrlBtn = document.getElementById('use-current-url');
     const patternInput = document.getElementById('prompt-pattern');
     const promptContent = document.getElementById('prompt-content');
     const promptsList = document.getElementById('prompts-list');
+
+    useCurrentUrlBtn?.addEventListener('click', async () => {
+        const url = await utils.getCurrentUrl();
+        patternInput.value = url;
+    });
 
     saveBtn?.addEventListener('click', async () => {
         const pattern = patternInput.value.trim();
         const content = promptContent.value.trim();
 
-        if (!pattern || !content) return;
+        if (!pattern || !content) {
+            return;
+        }
 
         await promptManager.savePrompt(pattern, content);
         await loadPrompts();
@@ -709,8 +726,16 @@ function initializePromptManager() {
     promptsList?.addEventListener('click', async (e) => {
         const action = e.target.dataset.action;
         const pattern = e.target.dataset.pattern;
+        const content = e.target.dataset.content;
 
-        if (!action || !pattern) return;
+        if (!action || !pattern) {
+            return;
+        }
+
+        if (action === 'edit') {
+            patternInput.value = pattern;
+            promptContent.value = content;
+        }
 
         if (action === 'delete') {
             const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');

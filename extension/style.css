@@ -587,6 +587,9 @@ hr {
     color: var(--text-color);
     font-weight: var(--font-weight-semibold);
     margin-bottom: var(--spacing-xs);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .prompt-content {
