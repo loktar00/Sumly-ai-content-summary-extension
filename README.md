@@ -1,4 +1,4 @@
-# AI Content Assistant
+# Web Content AI Summary Youtube Trancripts and Webpages.
 
 A Chrome extension that helps analyze and discuss content from any webpage or YouTube video using AI.
 
