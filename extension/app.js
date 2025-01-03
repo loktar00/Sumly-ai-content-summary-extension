@@ -302,6 +302,21 @@ const ui = {
         if (!isUserScrolledUp || force) {
             element.scrollTop = element.scrollHeight;
         }
+    },
+
+    async loadSystemPrompt() {
+        const systemPromptArea = document.getElementById('system-prompt');
+        if (systemPromptArea) {
+            const systemPrompt = await api.getSystemPrompt();
+            systemPromptArea.value = systemPrompt;
+
+            // Add event listener to save changes
+            systemPromptArea.addEventListener('change', async () => {
+                await chrome.storage.sync.set({
+                    systemPrompt: systemPromptArea.value
+                });
+            });
+        }
     }
 };
 
@@ -340,6 +355,7 @@ const handlers = {
     async handleSummarize() {
         try {
             const transcriptArea = document.getElementById("transcript-area");
+            const systemPromptArea = document.getElementById("system-prompt");
             let transcript = transcriptArea.value.trim();
             // Check if we're on YouTube
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -366,11 +382,10 @@ const handlers = {
             }
 
             const aiSettings = await api.getAiSettings();
-            const systemPrompt = await api.getSystemPrompt();
 
-            // Initialize conversation history
+            // Initialize conversation history with current system prompt
             state.conversationHistory = [
-                { role: 'system', content: systemPrompt }
+                { role: 'system', content: systemPromptArea.value }
             ];
 
             // Render the summary template
@@ -547,4 +562,7 @@ function initializeUI() {
     elements.fetchWebpage?.addEventListener("click", handlers.handleFetchWebpage);
     elements.copyClipboard?.addEventListener("click", handlers.handleCopyToClipboard);
     elements.summarize?.addEventListener("click", handlers.handleSummarize);
+
+    // Load system prompt
+    ui.loadSystemPrompt();
 }
