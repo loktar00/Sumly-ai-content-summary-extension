@@ -360,7 +360,7 @@ const ui = {
             systemPromptArea.value = savedPrompts[bestMatch];
         } else {
             selector.value = 'default';
-            systemPromptArea.value = defaultPrompt;
+            systemPromptArea.value = await api.getSystemPrompt();
         }
     }
 };
