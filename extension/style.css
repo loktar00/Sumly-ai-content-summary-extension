@@ -568,7 +568,7 @@ hr {
 }
 
 .prompt-item {
-    background: var(--message-bg-user);
+    background: var(--message-bg-ai);
     padding: var(--spacing-md);
     margin: var(--spacing-sm) 0;
     border-radius: var(--border-radius);
@@ -577,8 +577,9 @@ hr {
 }
 
 .prompt-pattern {
-    font-size: var(--font-size-sm);
-    color: var(--primary-color);
+    font-size: var(--font-size-md);
+    color: var(--text-color);
+    font-weight: var(--font-weight-semibold);
     margin-bottom: var(--spacing-xs);
 }
 
@@ -588,17 +589,15 @@ hr {
 }
 
 .prompt-actions {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
     display: flex;
-    gap: var(--spacing-xs);
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
 }
 
 .prompt-actions button {
-    padding: var(--spacing-xs);
+    padding: var(--spacing-sm);
     font-size: var(--font-size-sm);
-    min-width: auto;
+    min-width: 75px;
 }
 
 .prompt-selector {

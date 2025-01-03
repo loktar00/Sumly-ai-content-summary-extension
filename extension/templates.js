@@ -45,6 +45,16 @@ const templates = {
                 <div id="prompts-list"></div>
             </div>
         </div>
+    `,
+    promptItem: `
+        <div class="prompt-item">
+            <div class="prompt-pattern">{{pattern}}</div>
+            <div class="prompt-content">{{content}}</div>
+            <div class="prompt-actions">
+                <button class="btn" data-action="edit" data-pattern="{{pattern}}">Edit</button>
+                <button class="btn danger-btn" data-action="delete" data-pattern="{{pattern}}">Delete</button>
+            </div>
+        </div>
     `
 };
 

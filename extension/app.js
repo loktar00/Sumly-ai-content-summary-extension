@@ -683,16 +683,7 @@ async function loadPrompts() {
     const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
 
     promptsList.innerHTML = Object.entries(savedPrompts)
-        .map(([pattern, content]) => `
-            <div class="prompt-item">
-                <div class="prompt-pattern">${pattern}</div>
-                <div class="prompt-content">${content}</div>
-                <div class="prompt-actions">
-                    <button class="btn" data-action="edit" data-pattern="${pattern}">Edit</button>
-                    <button class="btn danger-btn" data-action="delete" data-pattern="${pattern}">Delete</button>
-                </div>
-            </div>
-        `)
+        .map(([pattern, content]) => renderTemplate('promptItem', { pattern, content }))
         .join('');
 }
 
