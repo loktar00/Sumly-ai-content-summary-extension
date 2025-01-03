@@ -322,6 +322,7 @@ const ui = {
     async loadPromptSelector() {
         const selector = document.getElementById('prompt-selector');
         const systemPromptArea = document.getElementById('system-prompt');
+
         if (!selector || !systemPromptArea) {
             return;
         }
@@ -329,13 +330,13 @@ const ui = {
         // Get current URL
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const currentUrl = tab?.url;
+
         if (!currentUrl) {
             return;
         }
 
         // Get all saved prompts
         const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
-        const defaultPrompt = await api.getSystemPrompt();
 
         // Clear existing options
         selector.innerHTML = '<option value="default">Default System Prompt</option>';
@@ -345,38 +346,20 @@ const ui = {
             const option = document.createElement('option');
             option.value = pattern;
             option.textContent = pattern;
-
-            // Check if this prompt matches the current URL
-            try {
-                const regex = promptManager.patternToRegex(pattern);
-                const urlObj = new URL(currentUrl);
-                const testUrl = `${urlObj.hostname}${urlObj.pathname}`;
-                if (regex.test(testUrl)) {
-                    option.selected = true;
-                    systemPromptArea.value = prompt;
-                }
-            } catch (e) {
-                console.error('Error matching pattern:', e);
-            }
-
             selector.appendChild(option);
         });
 
-        // Set default prompt if no match found
-        if (!selector.value) {
-            selector.value = 'default';
-            systemPromptArea.value = defaultPrompt;
-        }
+        // Find best matching pattern and select it in dropdown
+        const bestMatch = promptManager.findBestMatchForUrl(
+            currentUrl,
+            Object.keys(savedPrompts)
+        );
 
-        // Handle prompt selection changes
-        selector.addEventListener('change', async () => {
-            const selectedPattern = selector.value;
-            if (selectedPattern === 'default') {
-                systemPromptArea.value = defaultPrompt;
-            } else {
-                systemPromptArea.value = savedPrompts[selectedPattern];
-            }
-        });
+        if (bestMatch) {
+            selector.value = bestMatch;
+        } else {
+            selector.value = 'default';
+        }
     }
 };
 
@@ -417,6 +400,7 @@ const handlers = {
             const transcriptArea = document.getElementById("transcript-area");
             const systemPromptArea = document.getElementById("system-prompt");
             let transcript = transcriptArea.value.trim();
+
             // Check if we're on YouTube
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             const isYouTube = tab?.url?.includes('youtube.com/watch');
@@ -443,9 +427,9 @@ const handlers = {
 
             const aiSettings = await api.getAiSettings();
 
-            // Initialize conversation history with URL-specific prompt
+            // Initialize conversation history with current textarea content
             state.conversationHistory = [
-                { role: 'system', content: await promptManager.getPromptForUrl(tab.url) }
+                { role: 'system', content: systemPromptArea.value }
             ];
 
             // Render the summary template
@@ -655,7 +639,7 @@ function initializeUI() {
     elements.copyClipboard?.addEventListener("click", handlers.handleCopyToClipboard);
     elements.summarize?.addEventListener("click", handlers.handleSummarize);
 
-    // Prompt selector handler
+    // Prompt selector handler - only updates textarea content
     if (elements.promptSelector && elements.systemPrompt) {
         elements.promptSelector.addEventListener('change', async () => {
             const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
@@ -668,7 +652,7 @@ function initializeUI() {
         });
     }
 
-    // Load prompts and system prompt
+    // Load initial prompts and system prompt
     ui.loadSystemPrompt();
     ui.loadPromptSelector();
 }
@@ -676,42 +660,33 @@ function initializeUI() {
 const promptManager = {
     async savePrompt(pattern, prompt) {
         const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
-        savedPrompts[pattern] = prompt;
+        // Remove www. from pattern if present
+        const cleanPattern = pattern.replace(/^www\./, '');
+        savedPrompts[cleanPattern] = prompt;
         await chrome.storage.sync.set({ savedPrompts });
     },
 
     async getPromptForUrl(url) {
         const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
 
-        // Convert URL to match pattern format
+        // Clean the URL for matching
         const urlObj = new URL(url);
-        const testUrl = `${urlObj.hostname}${urlObj.pathname}`;
+        const cleanUrl = `${urlObj.hostname}${urlObj.pathname}`.replace(/^www\./, '');
 
-        // Find the most specific matching pattern
-        return Object.entries(savedPrompts)
-            .filter(([pattern]) => {
-                try {
-                    const regex = this.patternToRegex(pattern);
-                    return regex.test(testUrl);
-                } catch (e) {
-                    return false;
-                }
-            })
-            .sort(([patternA], [patternB]) => {
-                // More specific patterns (more segments) should come first
-                return patternB.split('/').length - patternA.split('/').length;
-            })[0]?.[1] || await api.getSystemPrompt(); // Fallback to default prompt
+        // Find all matching patterns and sort by length (longest first)
+        const matches = Object.entries(savedPrompts)
+            .filter(([pattern]) => cleanUrl.includes(pattern))
+            .sort(([patternA], [patternB]) => patternB.length - patternA.length);
+
+        // Return the longest matching pattern's prompt, or default
+        return matches[0]?.[1] || await api.getSystemPrompt();
     },
 
-    patternToRegex(pattern) {
-        return new RegExp(
-            '^' +
-            pattern
-                .replace(/\./g, '\\.')
-                .replace(/\*/g, '.*')
-                .replace(/\?/g, '.') +
-            '$'
-        );
+    findBestMatchForUrl(url, patterns) {
+        // Sort patterns by length (longest first) and find first match
+        return patterns
+            .sort((a, b) => b.length - a.length)
+            .find(pattern => url.includes(pattern));
     }
 };
 
