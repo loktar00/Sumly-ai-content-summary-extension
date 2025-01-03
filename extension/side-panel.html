@@ -11,16 +11,20 @@
 <body>
     <div class="side-panel-container">
         <header>
-            <h1>YouTube Transcript Fetcher</h1>
+            <h1>Content Assistant</h1>
             <div class="header-buttons">
                 <button id="open-options" class="settings-btn" title="Settings">⚙️</button>
             </div>
         </header>
         <div class="panel-content" id="panel-content">
-            <button id="summarize-transcript" class="btn ai-btn">Summarize with AI</button>
-            <textarea id="transcript-area" rows="5" cols="50" placeholder="Transcript will appear here..."></textarea>
-            <div class="button-group">
+            <button id="summarize-transcript" class="btn ai-btn">Summarize Page with AI</button>
+            <div class="button-group source-buttons">
+                <button id="fetch-webpage" class="btn">Get Page Content</button>
                 <button id="fetch-current-transcript" class="btn">Get Transcript</button>
+            </div>
+            <textarea id="system-prompt" rows="3" cols="50" placeholder="System Prompt"></textarea>
+            <textarea id="transcript-area" rows="5" cols="50" placeholder="Content will appear here..."></textarea>
+            <div class="button-group">
                 <button id="copy-to-clipboard" class="btn">Copy to Clipboard</button>
             </div>
         </div>

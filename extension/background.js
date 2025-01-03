@@ -15,8 +15,8 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 // Handle extension icon click when in side panel mode
 chrome.action.onClicked.addListener(async (tab) => {
-    if (!tab.url?.includes('youtube.com')) {
-        alert('Please navigate to a YouTube video first');
+    if (!tab.url) {
+        alert('Please navigate to a webpage first');
         return;
     }
 
@@ -25,10 +25,10 @@ chrome.action.onClicked.addListener(async (tab) => {
     }
 });
 
-// Handle YouTube navigation
+// Handle page navigation
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.url?.includes('youtube.com/watch')) {
-        console.log('[Background] YouTube video page loaded');
+    if (changeInfo.status === 'complete' && tab.url) {
+        console.log('[Background] Page loaded');
         try {
             await chrome.sidePanel.setOptions({
                 enabled: true,
