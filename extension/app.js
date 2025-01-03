@@ -307,6 +307,18 @@ const ui = {
 
 // Event handlers
 const handlers = {
+    async handleFetchWebpage() {
+        const transcriptArea = document.getElementById("transcript-area");
+
+        try {
+            transcriptArea.value = "Fetching page content...";
+            const content = await utils.getPageContent();
+            transcriptArea.value = content.trim();
+        } catch (error) {
+            transcriptArea.value = `Error fetching page content: ${error.message}`;
+        }
+    },
+
     async handleFetchTranscript() {
         const videoId = await utils.getCurrentVideoId();
         const transcriptArea = document.getElementById("transcript-area");
@@ -329,9 +341,16 @@ const handlers = {
         try {
             const transcriptArea = document.getElementById("transcript-area");
             let transcript = transcriptArea.value.trim();
+            // Check if we're on YouTube
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            const isYouTube = tab?.url?.includes('youtube.com/watch');
 
             if (!transcript) {
-                await handlers.handleFetchTranscript();
+                if (isYouTube) {
+                    await handlers.handleFetchTranscript();
+                } else {
+                    await handlers.handleFetchWebpage();
+                }
                 transcript = transcriptArea.value.trim();
             }
 
@@ -340,7 +359,12 @@ const handlers = {
                 return;
             }
 
-            const videoTitle = await utils.getVideoTitle(await utils.getCurrentVideoId());
+            let pageTitle = tab?.title || 'Page Content';
+
+            if (isYouTube) {
+                pageTitle = await utils.getVideoTitle(await utils.getCurrentVideoId());
+            }
+
             const aiSettings = await api.getAiSettings();
             const systemPrompt = await api.getSystemPrompt();
 
@@ -351,9 +375,9 @@ const handlers = {
 
             // Render the summary template
             container.innerHTML = renderTemplate('summary', {
-                title: videoTitle,
+                title: pageTitle,
                 model: aiSettings.model,
-                transcript: `${videoTitle}\n\n${transcript}`
+                transcript: `${pageTitle}\n\n${transcript}`
             });
 
             // Get references to elements after template is rendered
@@ -439,18 +463,6 @@ const handlers = {
             height: 700
         });
     },
-
-    async handleFetchWebpage() {
-        const transcriptArea = document.getElementById("transcript-area");
-
-        try {
-            transcriptArea.value = "Fetching page content...";
-            const content = await utils.getPageContent();
-            transcriptArea.value = content.trim();
-        } catch (error) {
-            transcriptArea.value = `Error fetching page content: ${error.message}`;
-        }
-    }
 };
 
 // Updated chat handlers to support streaming and markdown
