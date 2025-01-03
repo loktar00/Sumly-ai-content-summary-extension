@@ -2,9 +2,9 @@
 
 A Chrome extension that helps analyze and discuss content from any webpage or YouTube video using AI.
 
-## Example of it running
+## Example extension in action
 
-https://github.com/user-attachments/assets/08d410ae-4742-407f-99c4-6d75fd962bfd
+https://github.com/user-attachments/assets/3fd1d773-f416-4ffd-8308-5cad147676f8
 
 ## Features
 
