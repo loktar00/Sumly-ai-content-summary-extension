@@ -317,6 +317,66 @@ const ui = {
                 });
             });
         }
+    },
+
+    async loadPromptSelector() {
+        const selector = document.getElementById('prompt-selector');
+        const systemPromptArea = document.getElementById('system-prompt');
+        if (!selector || !systemPromptArea) {
+            return;
+        }
+
+        // Get current URL
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const currentUrl = tab?.url;
+        if (!currentUrl) {
+            return;
+        }
+
+        // Get all saved prompts
+        const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+        const defaultPrompt = await api.getSystemPrompt();
+
+        // Clear existing options
+        selector.innerHTML = '<option value="default">Default System Prompt</option>';
+
+        // Add saved prompts as options
+        Object.entries(savedPrompts).forEach(([pattern, prompt]) => {
+            const option = document.createElement('option');
+            option.value = pattern;
+            option.textContent = pattern;
+
+            // Check if this prompt matches the current URL
+            try {
+                const regex = promptManager.patternToRegex(pattern);
+                const urlObj = new URL(currentUrl);
+                const testUrl = `${urlObj.hostname}${urlObj.pathname}`;
+                if (regex.test(testUrl)) {
+                    option.selected = true;
+                    systemPromptArea.value = prompt;
+                }
+            } catch (e) {
+                console.error('Error matching pattern:', e);
+            }
+
+            selector.appendChild(option);
+        });
+
+        // Set default prompt if no match found
+        if (!selector.value) {
+            selector.value = 'default';
+            systemPromptArea.value = defaultPrompt;
+        }
+
+        // Handle prompt selection changes
+        selector.addEventListener('change', async () => {
+            const selectedPattern = selector.value;
+            if (selectedPattern === 'default') {
+                systemPromptArea.value = defaultPrompt;
+            } else {
+                systemPromptArea.value = savedPrompts[selectedPattern];
+            }
+        });
     }
 };
 
@@ -383,9 +443,9 @@ const handlers = {
 
             const aiSettings = await api.getAiSettings();
 
-            // Initialize conversation history with current system prompt
+            // Initialize conversation history with URL-specific prompt
             state.conversationHistory = [
-                { role: 'system', content: systemPromptArea.value }
+                { role: 'system', content: await promptManager.getPromptForUrl(tab.url) }
             ];
 
             // Render the summary template
@@ -478,6 +538,33 @@ const handlers = {
             height: 700
         });
     },
+
+    async handleManagePrompts() {
+        const container = document.querySelector('#panel-content');
+        if (!container) return;
+
+        // Save current content to restore later if needed
+        const previousContent = container.innerHTML;
+
+        // Render prompt manager
+        container.innerHTML = renderTemplate('promptManager', {});
+
+        // Initialize prompt manager
+        initializePromptManager();
+
+        // Add back button
+        const backBtn = document.createElement('button');
+        backBtn.className = 'btn';
+        backBtn.textContent = '← Back';
+        backBtn.addEventListener('click', () => {
+            container.innerHTML = previousContent;
+            initializeUI(); // Reinitialize main UI
+        });
+
+        // Insert back button at the top
+        const promptManager = container.querySelector('.prompt-manager');
+        promptManager.insertBefore(backBtn, promptManager.firstChild);
+    }
 };
 
 // Updated chat handlers to support streaming and markdown
@@ -551,18 +638,133 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
 function initializeUI() {
     const elements = {
         openOptions: document.getElementById("open-options"),
+        managePrompts: document.getElementById("manage-prompts"),
         fetchTranscript: document.getElementById("fetch-current-transcript"),
         fetchWebpage: document.getElementById("fetch-webpage"),
         copyClipboard: document.getElementById("copy-to-clipboard"),
-        summarize: document.getElementById("summarize-transcript")
+        summarize: document.getElementById("summarize-transcript"),
+        promptSelector: document.getElementById("prompt-selector"),
+        systemPrompt: document.getElementById("system-prompt")
     };
 
+    // Main button handlers
     elements.openOptions?.addEventListener("click", handlers.handleOpenSettings);
+    elements.managePrompts?.addEventListener("click", handlers.handleManagePrompts);
     elements.fetchTranscript?.addEventListener("click", handlers.handleFetchTranscript);
     elements.fetchWebpage?.addEventListener("click", handlers.handleFetchWebpage);
     elements.copyClipboard?.addEventListener("click", handlers.handleCopyToClipboard);
     elements.summarize?.addEventListener("click", handlers.handleSummarize);
 
-    // Load system prompt
+    // Prompt selector handler
+    if (elements.promptSelector && elements.systemPrompt) {
+        elements.promptSelector.addEventListener('change', async () => {
+            const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+            const defaultPrompt = await api.getSystemPrompt();
+
+            const selectedPattern = elements.promptSelector.value;
+            elements.systemPrompt.value = selectedPattern === 'default'
+                ? defaultPrompt
+                : savedPrompts[selectedPattern];
+        });
+    }
+
+    // Load prompts and system prompt
     ui.loadSystemPrompt();
+    ui.loadPromptSelector();
+}
+
+const promptManager = {
+    async savePrompt(pattern, prompt) {
+        const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+        savedPrompts[pattern] = prompt;
+        await chrome.storage.sync.set({ savedPrompts });
+    },
+
+    async getPromptForUrl(url) {
+        const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+
+        // Convert URL to match pattern format
+        const urlObj = new URL(url);
+        const testUrl = `${urlObj.hostname}${urlObj.pathname}`;
+
+        // Find the most specific matching pattern
+        return Object.entries(savedPrompts)
+            .filter(([pattern]) => {
+                try {
+                    const regex = this.patternToRegex(pattern);
+                    return regex.test(testUrl);
+                } catch (e) {
+                    return false;
+                }
+            })
+            .sort(([patternA], [patternB]) => {
+                // More specific patterns (more segments) should come first
+                return patternB.split('/').length - patternA.split('/').length;
+            })[0]?.[1] || await api.getSystemPrompt(); // Fallback to default prompt
+    },
+
+    patternToRegex(pattern) {
+        return new RegExp(
+            '^' +
+            pattern
+                .replace(/\./g, '\\.')
+                .replace(/\*/g, '.*')
+                .replace(/\?/g, '.') +
+            '$'
+        );
+    }
+};
+
+async function loadPrompts() {
+    const promptsList = document.getElementById('prompts-list');
+    const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+
+    promptsList.innerHTML = Object.entries(savedPrompts)
+        .map(([pattern, content]) => `
+            <div class="prompt-item">
+                <div class="prompt-pattern">${pattern}</div>
+                <div class="prompt-content">${content}</div>
+                <div class="prompt-actions">
+                    <button class="btn" data-action="edit" data-pattern="${pattern}">Edit</button>
+                    <button class="btn danger-btn" data-action="delete" data-pattern="${pattern}">Delete</button>
+                </div>
+            </div>
+        `)
+        .join('');
+}
+
+function initializePromptManager() {
+    const saveBtn = document.getElementById('save-prompt');
+    const patternInput = document.getElementById('prompt-pattern');
+    const promptContent = document.getElementById('prompt-content');
+    const promptsList = document.getElementById('prompts-list');
+
+    saveBtn?.addEventListener('click', async () => {
+        const pattern = patternInput.value.trim();
+        const content = promptContent.value.trim();
+
+        if (!pattern || !content) return;
+
+        await promptManager.savePrompt(pattern, content);
+        await loadPrompts();
+
+        patternInput.value = '';
+        promptContent.value = '';
+    });
+
+    promptsList?.addEventListener('click', async (e) => {
+        const action = e.target.dataset.action;
+        const pattern = e.target.dataset.pattern;
+
+        if (!action || !pattern) return;
+
+        if (action === 'delete') {
+            const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+            delete savedPrompts[pattern];
+            await chrome.storage.sync.set({ savedPrompts });
+            await loadPrompts();
+        }
+    });
+
+    loadPrompts();
 }

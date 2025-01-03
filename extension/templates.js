@@ -32,6 +32,19 @@ const templates = {
                 </div>
             </div>
         </div>
+    `,
+    promptManager: `
+        <div class="prompt-manager">
+            <div class="prompt-form">
+                <input type="text" id="prompt-pattern" placeholder="URL pattern (e.g., reddit.com/user/*)">
+                <textarea id="prompt-content" rows="3" placeholder="Enter prompt for this URL pattern"></textarea>
+                <button id="save-prompt" class="btn">Save Prompt</button>
+            </div>
+            <div class="saved-prompts">
+                <h3>Saved Prompts</h3>
+                <div id="prompts-list"></div>
+            </div>
+        </div>
     `
 };
 

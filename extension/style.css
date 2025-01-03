@@ -540,3 +540,72 @@ hr {
     flex: 1;
     max-width: 45%;
 }
+
+.prompt-manager {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.prompt-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.saved-prompts {
+    margin-top: var(--spacing-md);
+    text-align: left;
+}
+
+.prompt-item {
+    background: var(--message-bg-user);
+    padding: var(--spacing-md);
+    margin: var(--spacing-sm) 0;
+    border-radius: var(--border-radius);
+    position: relative;
+}
+
+.prompt-pattern {
+    font-size: var(--font-size-sm);
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-xs);
+}
+
+.prompt-content {
+    font-size: var(--font-size-sm);
+    white-space: pre-wrap;
+}
+
+.prompt-actions {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.prompt-actions button {
+    padding: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    min-width: auto;
+}
+
+.prompt-selector {
+    width: 100%;
+    margin-bottom: var(--spacing-sm);
+}
+
+.prompt-selector select {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--message-bg-user);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.prompt-selector select option {
+    background-color: var(--secondary-color);
+}
