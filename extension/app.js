@@ -342,7 +342,7 @@ const ui = {
         selector.innerHTML = '<option value="default">Default System Prompt</option>';
 
         // Add saved prompts as options
-        Object.entries(savedPrompts).forEach(([pattern, prompt]) => {
+        Object.entries(savedPrompts).forEach(([pattern, ]) => {
             const option = document.createElement('option');
             option.value = pattern;
             option.textContent = pattern;
@@ -357,8 +357,10 @@ const ui = {
 
         if (bestMatch) {
             selector.value = bestMatch;
+            systemPromptArea.value = savedPrompts[bestMatch];
         } else {
             selector.value = 'default';
+            systemPromptArea.value = defaultPrompt;
         }
     }
 };
@@ -525,7 +527,9 @@ const handlers = {
 
     async handleManagePrompts() {
         const container = document.querySelector('#panel-content');
-        if (!container) return;
+        if (!container) {
+            return;
+        }
 
         // Save current content to restore later if needed
         const previousContent = container.innerHTML;
@@ -664,22 +668,6 @@ const promptManager = {
         const cleanPattern = pattern.replace(/^www\./, '');
         savedPrompts[cleanPattern] = prompt;
         await chrome.storage.sync.set({ savedPrompts });
-    },
-
-    async getPromptForUrl(url) {
-        const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
-
-        // Clean the URL for matching
-        const urlObj = new URL(url);
-        const cleanUrl = `${urlObj.hostname}${urlObj.pathname}`.replace(/^www\./, '');
-
-        // Find all matching patterns and sort by length (longest first)
-        const matches = Object.entries(savedPrompts)
-            .filter(([pattern]) => cleanUrl.includes(pattern))
-            .sort(([patternA], [patternB]) => patternB.length - patternA.length);
-
-        // Return the longest matching pattern's prompt, or default
-        return matches[0]?.[1] || await api.getSystemPrompt();
     },
 
     findBestMatchForUrl(url, patterns) {
