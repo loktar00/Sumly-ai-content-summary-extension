@@ -66,7 +66,6 @@ const templates = {
     `,
     settings: `
         <div class="settings-content">
-            <h2>Settings</h2>
             <div class="settings-form">
                 <div class="form-group">
                     <label for="ai-url">Ollama Server URL:</label>
