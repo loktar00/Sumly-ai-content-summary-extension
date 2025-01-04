@@ -149,6 +149,45 @@ const utils = {
         });
 
         return result;
+    },
+
+    estimateTokens(text) {
+        if (!text) return 0;
+
+        // Count words (splitting on whitespace and punctuation)
+        const words = text.trim().split(/[\s,.!?;:'"()\[\]{}|\\/<>]+/).filter(Boolean);
+
+        // Count numbers (including decimals)
+        const numbers = text.match(/\d+\.?\d*/g) || [];
+
+        // Count special tokens (common in code and URLs)
+        const specialTokens = text.match(/[+\-*/=_@#$%^&]+/g) || [];
+
+        // Base calculation:
+        // - Most words are 1-2 tokens
+        // - Numbers are usually 1 token each
+        // - Special characters often get their own token
+        // - Add 10% for potential underestimation
+        const estimate = Math.ceil(
+            (words.length * 1.3) +          // Average 1.3 tokens per word
+            (numbers.length) +              // Count numbers
+            (specialTokens.length) +        // Count special tokens
+            (text.length / 100)            // Add small factor for length
+        );
+
+        return Math.max(1, estimate);
+    },
+
+    calculateConversationTokens(history) {
+        // Add extra tokens for message formatting and role indicators
+        const formatTokens = history.length * 4; // ~4 tokens per message for format
+
+        // Sum up tokens from all messages
+        const contentTokens = history.reduce((total, message) => {
+            return total + this.estimateTokens(message.content);
+        }, 0);
+
+        return formatTokens + contentTokens;
     }
 };
 
@@ -371,6 +410,24 @@ const ui = {
             selector.value = 'default';
             systemPromptArea.value = await api.getSystemPrompt();
         }
+    },
+
+    updateTokenCount(container) {
+        const tokenDisplay = container.querySelectorAll('.token-display');
+        if (!tokenDisplay) {
+            return;
+        }
+
+        const totalTokens = utils.calculateConversationTokens(state.conversationHistory);
+        tokenDisplay.forEach(display => {
+            display.textContent = `Total Tokens: ${totalTokens.toLocaleString()} / Context ${state.contextSize.toLocaleString()}`;
+        });
+
+        // Add warning class if approaching limit
+        tokenDisplay.forEach(display => {
+            display.classList.toggle('token-warning',
+                totalTokens > state.contextSize * 0.8);
+        });
     }
 };
 
@@ -437,10 +494,12 @@ const handlers = {
             }
 
             const aiSettings = await api.getAiSettings();
+            state.contextSize = aiSettings.numCtx; // Store context size
 
-            // Initialize conversation history with current textarea content
+            // Initialize conversation history with system prompt and content
             state.conversationHistory = [
-                { role: 'system', content: systemPromptArea.value }
+                { role: 'system', content: systemPromptArea.value },
+                { role: 'user', content: `${pageTitle}\n\n${transcript}` }  // Include full content
             ];
 
             // Render the summary template
@@ -449,6 +508,9 @@ const handlers = {
                 model: aiSettings.model,
                 transcript: `${pageTitle}\n\n${transcript}`
             });
+
+            // Update initial token count with full content
+            ui.updateTokenCount(container);
 
             // Get references to elements after template is rendered
             const elements = {
@@ -471,7 +533,7 @@ const handlers = {
             elements.formattedSummary.innerHTML = `
                 <div class="message user-message">
                     <div>
-                        ${markdownToHtml(transcript)}
+                        ${markdownToHtml(`${systemPromptArea.value}\n\n${transcript}`)}
                     </div>
                 </div>
             `;
@@ -568,10 +630,7 @@ const handlers = {
 async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButton, aiSettings) {
     async function sendMessage() {
         const message = chatInput.value.trim();
-
-        if (!message) {
-            return;
-        }
+        if (!message) return;
 
         // Create message elements
         const userMessage = document.createElement('div');
@@ -591,11 +650,13 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
         ui.autoScroll(true);
 
         try {
-            // Add user message to conversation history
             state.conversationHistory.push({
                 role: 'user',
                 content: message
             });
+
+            // Update token count
+            ui.updateTokenCount(formattedSummary.closest('.chat-container'));
 
             // Create and append AI message element
             const aiMessage = document.createElement('div');
@@ -612,6 +673,9 @@ async function setupStreamingChatHandlers(formattedSummary, chatInput, sendButto
                 role: 'assistant',
                 content: response
             });
+
+            // Update token count again after response
+            ui.updateTokenCount(formattedSummary.closest('.chat-container'));
 
             ui.autoScroll(true);
         } catch (error) {
@@ -673,17 +737,78 @@ function initializeUI() {
 const promptManager = {
     async savePrompt(pattern, prompt) {
         const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
-        // Remove www. from pattern if present
+        // Remove www. and clean pattern
         const cleanPattern = pattern.replace(/^www\./, '');
         savedPrompts[cleanPattern] = prompt;
         await chrome.storage.sync.set({ savedPrompts });
     },
 
+    patternToRegex(pattern) {
+        // Split into path and query parts
+        const [pathPart, queryPart] = pattern.split('?');
+
+        // Build path regex
+        let pathRegex = '^' + pathPart
+            .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars except *
+            .replace(/\*/g, '[^?]*');              // * matches anything except ?
+
+        // Add query parameters if they exist
+        if (queryPart) {
+            pathRegex += '\\?';
+            const queryParams = queryPart.split('&').map(param => {
+                return param.replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+                    .replace(/\*/g, '[^&]*');
+            });
+
+            // Allow query parameters in any order
+            pathRegex += queryParams
+                .map(param => `(?=.*${param})`)
+                .join('');
+
+            pathRegex += '[^#]*';  // Match rest of query string until fragment
+        }
+
+        return new RegExp(pathRegex);
+    },
+
     findBestMatchForUrl(url, patterns) {
-        // Sort patterns by length (longest first) and find first match
-        return patterns
-            .sort((a, b) => b.length - a.length)
-            .find(pattern => url.includes(pattern));
+        // Clean the URL for matching
+        const cleanUrl = url.replace(/^www\./, '');
+
+        // Convert patterns to regex and find matches
+        const matches = patterns
+            .map(pattern => ({
+                pattern,
+                regex: this.patternToRegex(pattern),
+                specificity: this.calculateSpecificity(pattern)
+            }))
+            .filter(({ regex }) => {
+                try {
+                    return regex.test(cleanUrl);
+                } catch (e) {
+                    console.error('Regex error for pattern:', pattern, e);
+                    return false;
+                }
+            })
+            .sort((a, b) => {
+                // Sort by specificity first
+                const specificityDiff = b.specificity - a.specificity;
+                if (specificityDiff !== 0) return specificityDiff;
+
+                // If same specificity, prefer longer pattern
+                return b.pattern.length - a.pattern.length;
+            });
+
+        return matches[0]?.pattern;
+    },
+
+    calculateSpecificity(pattern) {
+        // Count non-wildcard segments
+        const segments = pattern.split('/');
+        const queryParts = pattern.split('?')[1]?.split('&') || [];
+
+        return segments.filter(s => s !== '*').length +
+               queryParts.filter(p => p !== '*').length;
     }
 };
 
