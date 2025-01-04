@@ -533,7 +533,7 @@ const handlers = {
             elements.formattedSummary.innerHTML = `
                 <div class="message user-message">
                     <div>
-                        ${markdownToHtml(transcript)}
+                        ${markdownToHtml(`${systemPromptArea.value}\n\n${transcript}`)}
                     </div>
                 </div>
             `;
