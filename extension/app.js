@@ -30,15 +30,6 @@ const utils = {
         }
     },
 
-    async openPopupWindow(url, options = {}) {
-        const defaultOptions = {
-            width: 800,
-            height: 630,
-            type: 'popup'
-        };
-        return chrome.windows.create({ ...defaultOptions, ...options, url });
-    },
-
     parseTranscriptXml(transcriptXml) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(transcriptXml, "text/xml");
@@ -155,7 +146,7 @@ const utils = {
         if (!text) return 0;
 
         // Count words (splitting on whitespace and punctuation)
-        const words = text.trim().split(/[\s,.!?;:'"()\[\]{}|\\/<>]+/).filter(Boolean);
+        const words = text.trim().split(/[\s,.!?;:'"()[\]{}|\\/<>]+/).filter(Boolean);
 
         // Count numbers (including decimals)
         const numbers = text.match(/\d+\.?\d*/g) || [];
@@ -188,6 +179,13 @@ const utils = {
         }, 0);
 
         return formatTokens + contentTokens;
+    },
+
+    formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+        return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
     }
 };
 
@@ -213,8 +211,11 @@ const api = {
     },
 
     async getSystemPrompt() {
-        const { systemPrompt } = await chrome.storage.sync.get(['systemPrompt']);
-        return systemPrompt || CONSTANTS.API.DEFAULT_SYSTEM_PROMPT;
+        const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+        const defaultPrompt = Object.entries(savedPrompts)
+            .find(([, prompt]) => prompt.isDefault);
+
+        return defaultPrompt ? defaultPrompt[1].content : CONSTANTS.API.DEFAULT_SYSTEM_PROMPT;
     }
 };
 
@@ -378,7 +379,6 @@ const ui = {
 
         // Get current URL
         const currentUrl = await utils.getCurrentUrl();
-
         if (!currentUrl) {
             return;
         }
@@ -389,13 +389,15 @@ const ui = {
         // Clear existing options
         selector.innerHTML = '<option value="default">Default System Prompt</option>';
 
-        // Add saved prompts as options
-        Object.entries(savedPrompts).forEach(([pattern, ]) => {
-            const option = document.createElement('option');
-            option.value = pattern;
-            option.textContent = pattern;
-            selector.appendChild(option);
-        });
+        // Add saved prompts as options, excluding the current default
+        Object.entries(savedPrompts)
+            .filter(([, promptData]) => !promptData.isDefault) // Filter out the default prompt
+            .forEach(([pattern, ]) => {
+                const option = document.createElement('option');
+                option.value = pattern;
+                option.textContent = pattern;
+                selector.appendChild(option);
+            });
 
         // Find best matching pattern and select it in dropdown
         const bestMatch = promptManager.findBestMatchForUrl(
@@ -405,7 +407,7 @@ const ui = {
 
         if (bestMatch) {
             selector.value = bestMatch;
-            systemPromptArea.value = savedPrompts[bestMatch];
+            systemPromptArea.value = savedPrompts[bestMatch].content;
         } else {
             selector.value = 'default';
             systemPromptArea.value = await api.getSystemPrompt();
@@ -589,21 +591,9 @@ const handlers = {
         }
     },
 
-    async handleOpenSettings() {
-        await utils.openPopupWindow('options.html', {
-            width: 500,  // Smaller width for settings
-            height: 700
-        });
-    },
-
     async handleManagePrompts() {
         const container = document.querySelector('#panel-content');
-        if (!container) {
-            return;
-        }
-
-        // Save current content to restore later if needed
-        const previousContent = container.innerHTML;
+        if (!container) return;
 
         // Render prompt manager
         container.innerHTML = renderTemplate('promptManager', {});
@@ -611,18 +601,98 @@ const handlers = {
         // Initialize prompt manager
         initializePromptManager();
 
-        // Add back button
+        // Add back button that returns to main view
         const backBtn = document.createElement('button');
         backBtn.className = 'btn';
         backBtn.textContent = '← Back';
         backBtn.addEventListener('click', () => {
-            container.innerHTML = previousContent;
-            initializeUI(); // Reinitialize main UI
+            // Reset to main view
+            container.innerHTML = renderTemplate('mainView', {});
+            initializeUI();
         });
 
         // Insert back button at the top
         const promptManager = container.querySelector('.prompt-manager');
         promptManager.insertBefore(backBtn, promptManager.firstChild);
+    },
+
+    async handleSettings() {
+        const container = document.querySelector('#panel-content');
+        if (!container) return;
+
+        // Render settings template
+        container.innerHTML = renderTemplate('settings', {});
+
+        // Initialize settings
+        const elements = {
+            aiUrl: document.getElementById('ai-url'),
+            aiModel: document.getElementById('ai-model'),
+            numCtx: document.getElementById('num-ctx'),
+            fetchModels: document.getElementById('fetch-models'),
+            saveSettings: document.getElementById('save-settings')
+        };
+
+        // Load current settings
+        const settings = await api.getAiSettings();
+        elements.aiUrl.value = settings.url;
+        elements.numCtx.value = settings.numCtx;
+
+        // Add back button that returns to main view
+        const backBtn = document.createElement('button');
+        backBtn.className = 'btn';
+        backBtn.textContent = '← Back';
+        backBtn.addEventListener('click', () => {
+            // Reset to main view
+            container.innerHTML = renderTemplate('mainView', {});
+            initializeUI();
+        });
+
+        // Insert back button
+        const settingsContent = container.querySelector('.settings-content');
+        settingsContent.insertBefore(backBtn, settingsContent.firstChild);
+
+        // Fetch models handler
+        elements.fetchModels.addEventListener('click', async () => {
+            try {
+                elements.aiModel.disabled = true;
+                elements.aiModel.innerHTML = '<option value="">Loading...</option>';
+
+                const response = await fetch(`${elements.aiUrl.value}/api/tags`);
+                if (!response.ok) throw new Error('Failed to fetch models');
+
+                const data = await response.json();
+                const models = data.models || [];
+
+                elements.aiModel.innerHTML = models
+                    .map(model => `<option value="${model.name}">
+                        ${model.name} (${utils.formatSize(model.size)})
+                    </option>`)
+                    .join('');
+
+                elements.aiModel.value = settings.model;
+                elements.aiModel.disabled = false;
+            } catch (error) {
+                alert(`Error fetching models: ${error.message}`);
+                elements.aiModel.innerHTML = '<option value="">Error loading models</option>';
+            }
+        });
+
+        // Save settings handler
+        elements.saveSettings.addEventListener('click', async () => {
+            try {
+                await chrome.storage.sync.set({
+                    aiUrl: elements.aiUrl.value,
+                    aiModel: elements.aiModel.value,
+                    numCtx: parseInt(elements.numCtx.value)
+                });
+                alert('Settings saved successfully!');
+            } catch (error) {
+                alert(`Error saving settings: ${error.message}`);
+            }
+        });
+
+        // Initial model fetch
+        elements.fetchModels.click();
     }
 };
 
@@ -709,7 +779,7 @@ function initializeUI() {
     };
 
     // Main button handlers
-    elements.openOptions?.addEventListener("click", handlers.handleOpenSettings);
+    elements.openOptions?.addEventListener("click", handlers.handleSettings);
     elements.managePrompts?.addEventListener("click", handlers.handleManagePrompts);
     elements.fetchTranscript?.addEventListener("click", handlers.handleFetchTranscript);
     elements.fetchWebpage?.addEventListener("click", handlers.handleFetchWebpage);
@@ -725,7 +795,7 @@ function initializeUI() {
             const selectedPattern = elements.promptSelector.value;
             elements.systemPrompt.value = selectedPattern === 'default'
                 ? defaultPrompt
-                : savedPrompts[selectedPattern];
+                : savedPrompts[selectedPattern].content;
         });
     }
 
@@ -735,11 +805,28 @@ function initializeUI() {
 }
 
 const promptManager = {
-    async savePrompt(pattern, prompt) {
+    async savePrompt(pattern, prompt, makeDefault = false) {
         const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
-        // Remove www. and clean pattern
+
+        // If making this prompt default, remove default flag from others
+        if (makeDefault) {
+            Object.keys(savedPrompts).forEach(key => {
+                if (savedPrompts[key].isDefault) {
+                    savedPrompts[key] = {
+                        ...savedPrompts[key],
+                        isDefault: false
+                    };
+                }
+            });
+        }
+
+        // Clean pattern and save prompt
         const cleanPattern = pattern.replace(/^www\./, '');
-        savedPrompts[cleanPattern] = prompt;
+        savedPrompts[cleanPattern] = {
+            content: prompt,
+            isDefault: makeDefault
+        };
+
         await chrome.storage.sync.set({ savedPrompts });
     },
 
@@ -782,7 +869,7 @@ const promptManager = {
                 regex: this.patternToRegex(pattern),
                 specificity: this.calculateSpecificity(pattern)
             }))
-            .filter(({ regex }) => {
+            .filter(({ pattern, regex }) => {
                 try {
                     return regex.test(cleanUrl);
                 } catch (e) {
@@ -809,7 +896,7 @@ const promptManager = {
 
         return segments.filter(s => s !== '*').length +
                queryParts.filter(p => p !== '*').length;
-    }
+    },
 };
 
 async function loadPrompts() {
@@ -817,7 +904,12 @@ async function loadPrompts() {
     const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
 
     promptsList.innerHTML = Object.entries(savedPrompts)
-        .map(([pattern, content]) => renderTemplate('promptItem', { pattern, content }))
+        .map(([pattern, promptData]) => renderTemplate('promptItem', {
+            pattern,
+            promptContent: promptData.content,
+            defaultClass: promptData.isDefault ? ' is-default' : '',
+            defaultText: promptData.isDefault ? '✓ Default' : 'Make Default'
+        }))
         .join('');
 }
 
@@ -851,22 +943,35 @@ function initializePromptManager() {
     promptsList?.addEventListener('click', async (e) => {
         const action = e.target.dataset.action;
         const pattern = e.target.dataset.pattern;
-        const content = e.target.dataset.content;
 
         if (!action || !pattern) {
             return;
         }
 
-        if (action === 'edit') {
-            patternInput.value = pattern;
-            promptContent.value = content;
-        }
+        // Get the current saved prompts
+        const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
 
-        if (action === 'delete') {
-            const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+        switch (action) {
+        case 'edit':
+            patternInput.value = pattern;
+            promptContent.value = savedPrompts[pattern].content;
+            break;
+
+        case 'delete':
             delete savedPrompts[pattern];
             await chrome.storage.sync.set({ savedPrompts });
             await loadPrompts();
+            break;
+
+        case 'default':
+            // Update the prompt to be default
+            await promptManager.savePrompt(
+                pattern,
+                savedPrompts[pattern].content,
+                true
+            );
+            await loadPrompts();
+            break;
         }
     });
 
