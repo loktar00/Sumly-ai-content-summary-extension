@@ -136,7 +136,7 @@ textarea::-webkit-scrollbar-thumb:hover,
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-lg);
-    padding: var(--spacing-md);
+    padding: var(--spacing-lg);
 }
 
 /* Header Styles */
