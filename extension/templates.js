@@ -17,6 +17,7 @@ const templates = {
                             <div></div>
                             <div></div>
                         </div>
+                        <div class="token-display"></div>
                         <div class="button-group loading-controls">
                             <button id="cancel-generation" class="btn">← Back</button>
                             <button id="stop-generation" class="btn danger-btn">Stop</button>
@@ -24,6 +25,7 @@ const templates = {
                     </div>
                     <div class="chat-input-container hidden">
                         <textarea id="chat-input" rows="3" placeholder="Ask a question about the transcript..."></textarea>
+                        <div class="token-display"></div>
                         <div class="button-group">
                             <button id="back-to-transcript" class="btn">← Back</button>
                             <button id="send-message" class="btn">Send</button>

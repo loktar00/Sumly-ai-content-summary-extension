@@ -624,7 +624,7 @@ hr {
     margin-bottom: var(--spacing-sm);
 }
 
-.prompt-selector select {
+select {
     width: 100%;
     padding: var(--spacing-sm) var(--spacing-md);
     background-color: transparent;
@@ -634,6 +634,18 @@ hr {
     cursor: pointer;
 }
 
-.prompt-selector select option {
+select option {
     background-color: var(--background-color);
+}
+
+.token-display {
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+    opacity: 0.8;
+    text-align: right;
+    margin: var(--spacing-sm) 0;
+}
+
+.token-display.token-warning {
+    color: var(--streaming-color);
 }
