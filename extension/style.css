@@ -169,6 +169,23 @@ h1, h2, h3 {
     letter-spacing: -0.01em;
 }
 
+h1.title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+h1.title .subtitle {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-normal);
+    color: var(--text-color);
+}
+
+.title img {
+    width: 32px;
+    height: 32px;
+}
+
 h2 {
     font-size: var(--font-size-lg);
 }
