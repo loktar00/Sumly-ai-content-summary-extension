@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "YouTube Notifications Scraper",
+    "name": "Sumly",
     "version": "1.0",
-    "description": "Extract YouTube video URLs from notifications.",
+    "description": "Extract and analyze content from any webpage or YouTube video using AI.",
     "permissions": [
         "activeTab",
         "storage",
@@ -18,7 +18,13 @@
         "<all_urls>"
     ],
     "action": {
-        "default_title": "YouTube Transcript"
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "32": "icons/icon32.png",
+            "48": "icons/icon48.png",
+            "128": "icons/icon128.png"
+        },
+        "default_title": "Sumly"
     },
     "side_panel": {
         "default_path": "side-panel.html"
@@ -49,5 +55,11 @@
     "content_scripts": [{
         "matches": ["https://www.youtube.com/*"],
         "js": ["content.js"]
-    }]
+    }],
+    "icons": {
+        "16": "icons/icon16.png",
+        "32": "icons/icon32.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    }
 }

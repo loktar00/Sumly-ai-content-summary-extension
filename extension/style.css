@@ -2,7 +2,7 @@
     /* Colors */
     --primary-color: #A700FF;
     --secondary-color: #FF007a;
-    --background-color: #1d031f;
+    --background-color: #110020;
     --header-text-color: #fff;
     --text-color: #fff;
     --icon-color: #6c757d;
@@ -167,6 +167,23 @@ h1, h2, h3 {
     color: var(--header-text-color);
     font-weight: var(--font-weight-semibold);
     letter-spacing: -0.01em;
+}
+
+h1.title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+h1.title .subtitle {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-normal);
+    color: var(--text-color);
+}
+
+.title img {
+    width: 32px;
+    height: 32px;
 }
 
 h2 {

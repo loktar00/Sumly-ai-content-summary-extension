@@ -1,10 +1,10 @@
-# Web Content AI Summary - YouTube Transcripts and Webpages
+<div align="center">
+  <img src="assets/logo.svg" alt="Sumly Logo" width="200"/>
+  <h1>Sumly</h1>
+  <p><em>Your Content, Simplified</em></p>
+</div>
 
 A Chrome extension that helps analyze and discuss content from any webpage or YouTube video using AI.
-
-## Example extension in action
-
-https://github.com/user-attachments/assets/3fd1d773-f416-4ffd-8308-5cad147676f8
 
 ## Features
 
@@ -12,14 +12,25 @@ https://github.com/user-attachments/assets/3fd1d773-f416-4ffd-8308-5cad147676f8
 - 🎥 Fetch transcripts from YouTube videos
 - 🤖 Generate AI summaries using Ollama
 - 💬 Interactive chat interface for follow-up questions
-- 🎨 Dark mode interface with cyberpunk-inspired design
-- ⚙️ Configurable AI model settings
-- 📝 URL-based prompt management:
-  - Save custom prompts for specific URLs or URL patterns
+- 🎨 Smart URL-based prompts:
+  - Save custom prompts for specific URL patterns
   - Automatic prompt selection based on current webpage
-  - Edit and manage saved prompts
-  - Longer URL patterns take precedence (e.g., reddit.com/user/* over reddit.com/*)
+  - Support for wildcards in URL patterns (e.g., reddit.com/*/comments/*)
+  - Manage default system prompts
+  - Edit and organize prompts by URL pattern
+- 📊 Token usage tracking with context window warnings
+- 🎨 Cyberpunk-inspired dark mode interface
+- ⚙️ Configurable AI model settings
 - 📋 Easy content copying
+
+## What's New
+
+- 🔄 Completely redesigned interface with side panel integration
+- 🎯 Advanced URL pattern matching with wildcard support
+- 📝 Improved prompt management system
+- 🔍 Default prompt system for consistent interactions
+- 📊 Real-time token usage monitoring
+- 🎨 New cyberpunk theme and branding
 
 ## Requirements
 
@@ -40,55 +51,77 @@ https://github.com/user-attachments/assets/3fd1d773-f416-4ffd-8308-5cad147676f8
 2. Enter your Ollama server URL (default: http://localhost:11434)
 3. Click "Fetch Available Models" to see models available on your Ollama server
 4. Select your preferred model
-5. Customize the system prompt if desired
-6. Adjust the context window size based on your needs and model capabilities
-7. Click Save
+5. Adjust the context window size based on your needs and model capabilities
+6. Click Save
 
 ## Usage
 
 ### Managing Prompts
-1. Click the prompt manager icon (📝) in the extension
+1. Click the prompt manager icon (📝)
 2. To add a new prompt:
-   - Enter a URL pattern (e.g., reddit.com/user)
+   - Enter a URL pattern (e.g., reddit.com/r/*)
    - Write your custom prompt
    - Click Save
 3. To use current page URL:
    - Click "Get URL" to automatically fill the pattern
-   - Modify as needed (remove specific parts for broader matching)
-4. Edit or delete existing prompts using the buttons on each prompt card
-5. Prompts are automatically selected based on the current webpage URL
-   - More specific patterns (longer URLs) take precedence
-   - You can always modify the selected prompt before summarizing
+   - Modify as needed (add wildcards for broader matching)
+4. Set a prompt as default:
+   - Click "Make Default" on any saved prompt
+   - Default prompt will be used when no URL patterns match
+5. Edit or delete existing prompts using the action buttons
 
 ### For Any Webpage
 1. Navigate to any webpage
-2. Click the extension icon to open the side panel
+2. Click the Sumly icon to open the side panel
 3. Click "Get Page Content" to extract the main content
-4. The appropriate prompt will be automatically selected based on the URL
+4. The appropriate prompt will be automatically selected based on URL patterns
 5. Click "Summarize Page with AI" to generate a summary
-6. Ask follow-up questions in the chat interface
+6. Monitor token usage in real-time
+7. Ask follow-up questions in the chat interface
 
 ### For YouTube Videos
 1. Navigate to any YouTube video
-2. Click the extension icon to open the side panel
+2. Click the Sumly icon to open the side panel
 3. Click "Get Transcript" to fetch the video transcript
-4. The appropriate prompt will be automatically selected based on the URL
+4. The appropriate prompt will be automatically selected based on URL patterns
 5. Click "Summarize Page with AI" to generate a summary
-6. Ask follow-up questions in the chat interface
-
-## Settings
-![image](https://github.com/user-attachments/assets/040c5a11-237e-4a77-8829-bf294aecd109)
+6. Monitor token usage in real-time
+7. Ask follow-up questions in the chat interface
 
 ## Development
 
-The extension is built with vanilla JavaScript and uses:
+Built with:
+- Vanilla JavaScript
 - Chrome Extension APIs
-- Ollama API for AI functionality
-- Custom CSS for styling
+- Ollama API
+- Custom CSS with cyberpunk theme
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Roadmap
+
+### Upcoming Features
+
+#### Interface Improvements
+- 🌓 Light mode theme option
+- 🎯 Element targeting for specific content extraction
+- 📜 Auto-scroll webpage content integration
+- 🔄 Save transcript between screen changes
+- 🎛️ Model switching in chat summary view
+
+#### Core Functionality
+- 🤖 External AI provider support (OpenAI, Anthropic)
+- 📊 Token estimation and batch summary
+- 🔍 Enhanced webpage interaction capabilities
+- 🎯 Improved content targeting system
+
+#### Development Improvements
+- 📦 Build process implementation
+- 🔧 TypeScript migration
+- ✅ Test suite implementation
+- 🔍 Enhanced linting and code quality tools
 
 ## License
 
