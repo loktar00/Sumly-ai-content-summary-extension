@@ -12,6 +12,11 @@ A Chrome extension that helps analyze and discuss content from any webpage or Yo
 - 🎥 Fetch transcripts from YouTube videos
 - 🤖 Generate AI summaries using Ollama
 - 💬 Interactive chat interface for follow-up questions
+- 🎨 Smart content handling:
+  - Automatic content chunking for large texts
+  - Token-aware processing
+  - Progress tracking for multi-chunk processing
+  - Intelligent content preservation
 - 🎨 Smart URL-based prompts:
   - Save custom prompts for specific URL patterns
   - Automatic prompt selection based on current webpage
@@ -25,6 +30,9 @@ A Chrome extension that helps analyze and discuss content from any webpage or Yo
 
 ## What's New
 
+- 🔄 Smart content chunking system
+- 📈 Real-time chunk processing feedback
+- 🎯 Improved content preservation in summaries
 - 🔄 Completely redesigned interface with side panel integration
 - 🎯 Advanced URL pattern matching with wildcard support
 - 📝 Improved prompt management system
@@ -113,9 +121,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 #### Core Functionality
 - 🤖 External AI provider support (OpenAI, Anthropic)
-- 📊 Token estimation and batch summary
-- 🔍 Enhanced webpage interaction capabilities
+- 📊 Enhanced webpage interaction capabilities
 - 🎯 Improved content targeting system
+- 🎯 Element targeting for specific content extraction
 
 #### Development Improvements
 - 📦 Build process implementation
