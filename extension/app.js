@@ -186,6 +186,111 @@ const utils = {
         const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
         return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
+    },
+
+    async chunkAndSummarize(content, contextSize, aiSettings, systemPrompt) {
+        // Calculate available tokens accounting for:
+        // 1. System prompt tokens
+        // 2. Message formatting tokens (~4 per message)
+        // 3. Safety margin for potential underestimation (50 tokens)
+        const systemPromptTokens = utils.estimateTokens(systemPrompt);
+        const messageFormatTokens = 8;  // 4 tokens each for system and user message
+        const safetyMargin = 50;
+
+        const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
+        const availableTokens = contextSize - totalOverhead;
+        const estimatedTokens = utils.estimateTokens(content);
+
+        // If content fits in context, return as is
+        if (estimatedTokens <= availableTokens) {
+            return content;
+        }
+
+        const chunkSummaryPrompt = "Remove filler words and phrases keep the key information and structure to make this content smaller. Do not infer or make assumptions. Keep the original tone and style of the content. Do not add any of your own thoughts or opinions. Use different words and phrases to make this content smaller.";
+
+        // Calculate optimal chunk size (leaving room for summary prompt)
+        const summaryPromptTokens = utils.estimateTokens(chunkSummaryPrompt);
+        const chunkSize = Math.floor((availableTokens - summaryPromptTokens) * 0.9);  // 90% of available space
+
+        // Split content into chunks
+        const chunks = [];
+        let currentChunk = '';
+        let currentTokens = 0;
+
+        const sentences = content.split(/(?<=[.!?])\s+/);
+        for (const sentence of sentences) {
+            const sentenceTokens = utils.estimateTokens(sentence);
+
+            if (currentTokens + sentenceTokens > chunkSize) {
+                chunks.push(currentChunk);
+                currentChunk = sentence;
+                currentTokens = sentenceTokens;
+            } else {
+                currentChunk += (currentChunk ? ' ' : '') + sentence;
+                currentTokens += sentenceTokens;
+            }
+        }
+
+        if (currentChunk) {
+            chunks.push(currentChunk);
+        }
+
+        // Switch to summary view to show progress
+        const container = document.querySelector('#panel-content');
+        container.innerHTML = renderTemplate('summary', {
+            model: aiSettings.model
+        });
+
+        const formattedSummary = document.getElementById('formatted-summary');
+        const loadingElement = document.getElementById('chat-loading');
+
+        // Show initial status
+        formattedSummary.innerHTML = `
+            <div class="message system-message">
+                <div>Content size (${estimatedTokens} tokens) exceeds context window (${contextSize} tokens).</div>
+                <div>Breaking content into ${chunks.length} chunks for processing...</div>
+            </div>
+        `;
+
+        // Show loading state
+        loadingElement.classList.remove('hidden');
+
+        // Summarize each chunk
+        const chunkSummaries = [];
+        let processedChunks = 0;
+
+        for (const chunk of chunks) {
+            // Update progress
+            const progressMessage = document.createElement('div');
+            progressMessage.className = 'message system-message';
+            progressMessage.innerHTML = `Processing chunk ${processedChunks + 1} of ${chunks.length}...`;
+
+            ui.autoScroll(true);
+
+            formattedSummary.appendChild(progressMessage);
+
+            const summary = await chat.handleStreamingAIResponse(
+                aiSettings,
+                chunk,
+                formattedSummary,  // Now showing intermediate summaries
+                chunkSummaryPrompt
+            );
+
+            chunkSummaries.push(summary);
+            processedChunks++;
+        }
+
+        // After processing all chunks
+        const combinedSummaries = chunkSummaries.join('\n\n');
+
+        // Add final status message
+        const finalMessage = document.createElement('div');
+        finalMessage.className = 'message system-message';
+        finalMessage.innerHTML = 'Performing final summarization...';
+        formattedSummary.appendChild(finalMessage);
+        ui.autoScroll(true);
+
+        return combinedSummaries;
     }
 };
 
@@ -220,7 +325,7 @@ const api = {
 };
 
 const chat = {
-    async handleStreamingAIResponse(aiSettings, prompt, parentElement) {
+    async handleStreamingAIResponse(aiSettings, prompt, parentElement, systemPromptOverride = null) {
         try {
             const baseUrl = aiSettings.url;
             const endpoint = `${baseUrl}/api/chat`;
@@ -243,12 +348,19 @@ const chat = {
                 });
             }
 
-            const requestBody = {
-                model: aiSettings.model,
-                messages: [
+            const messages = systemPromptOverride
+                ? [
+                    { role: 'system', content: systemPromptOverride },
+                    { role: 'user', content: prompt }
+                ]
+                : [
                     ...state.conversationHistory,
                     { role: 'user', content: prompt }
-                ],
+                ];
+
+            const requestBody = {
+                model: aiSettings.model,
+                messages: messages,
                 options: {
                     temperature: 0.8,
                     num_ctx: aiSettings.numCtx,
@@ -469,6 +581,7 @@ const handlers = {
         try {
             const transcriptArea = document.getElementById("transcript-area");
             const systemPromptArea = document.getElementById("system-prompt");
+            const enableChunking = document.getElementById("enable-chunking");
             let transcript = transcriptArea.value.trim();
 
             // Check if we're on YouTube
@@ -484,31 +597,50 @@ const handlers = {
                 transcript = transcriptArea.value.trim();
             }
 
+            const pageTitle = await utils.getVideoTitle() || document.title || "Content";
             const container = document.querySelector('#panel-content');
-            if (!container) {
-                return;
-            }
-
-            let pageTitle = currentUrl?.title || 'Page Content';
-
-            if (isYouTube) {
-                pageTitle = await utils.getVideoTitle(await utils.getCurrentVideoId());
-            }
 
             const aiSettings = await api.getAiSettings();
             state.contextSize = aiSettings.numCtx; // Store context size
 
-            // Initialize conversation history with system prompt and content
+            const systemPrompt = systemPromptArea.value;
+            let processedContent = transcript;
+
+            // Only process chunks if enabled and content is too large
+            if (enableChunking?.checked) {
+                const estimatedTokens = utils.estimateTokens(transcript);
+                const systemPromptTokens = utils.estimateTokens(systemPrompt);
+                const messageFormatTokens = 8;
+                const safetyMargin = 50;
+                const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
+
+                if (estimatedTokens + totalOverhead > aiSettings.numCtx) {
+                    processedContent = await utils.chunkAndSummarize(
+                        transcript,
+                        aiSettings.numCtx,
+                        aiSettings,
+                        systemPrompt
+                    );
+                }
+            }
+
+            // If we get here, either chunking is disabled or content fits in context
+            // Continue with normal summary view switch
+            container.innerHTML = renderTemplate('summary', {
+                model: aiSettings.model
+            });
+
+            // Initialize conversation history with processed content
             state.conversationHistory = [
-                { role: 'system', content: systemPromptArea.value },
-                { role: 'user', content: `${pageTitle}\n\n${transcript}` }  // Include full content
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `${pageTitle}\n\n${processedContent}` }
             ];
 
             // Render the summary template
             container.innerHTML = renderTemplate('summary', {
                 title: pageTitle,
                 model: aiSettings.model,
-                transcript: `${pageTitle}\n\n${transcript}`
+                transcript: `${pageTitle}\n\n${processedContent}`
             });
 
             // Update initial token count with full content
@@ -535,7 +667,7 @@ const handlers = {
             elements.formattedSummary.innerHTML = `
                 <div class="message user-message">
                     <div>
-                        ${markdownToHtml(`${systemPromptArea.value}\n\n${transcript}`)}
+                        ${markdownToHtml(`${systemPrompt}\n\n${processedContent}`)}
                     </div>
                 </div>
             `;
@@ -547,12 +679,12 @@ const handlers = {
 
                 const response = await chat.handleStreamingAIResponse(
                     aiSettings,
-                    transcript,
+                    processedContent,
                     elements.formattedSummary
                 );
 
                 state.conversationHistory.push(
-                    { role: 'user', content: transcript },
+                    { role: 'user', content: processedContent },
                     { role: 'assistant', content: response }
                 );
 

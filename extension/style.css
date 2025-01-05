@@ -701,3 +701,30 @@ select option {
     background-color: var(--ai-accent-color);
     border-color: var(--ai-accent-color);
 }
+
+.summarize-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.chunk-control {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+    opacity: 0.9;
+}
+
+.chunk-control input[type="checkbox"] {
+    margin: 0;
+}
+
+.chunking-notice {
+    font-size: var(--font-size-sm);
+    color: var(--streaming-color);
+    margin: var(--spacing-sm) 0;
+    text-align: center;
+}

@@ -24,7 +24,7 @@ const templates = {
                         </div>
                     </div>
                     <div class="chat-input-container hidden">
-                        <textarea id="chat-input" rows="3" placeholder="Ask a question about the transcript..."></textarea>
+                        <textarea id="chat-input" rows="3" placeholder="Ask a question about the content..."></textarea>
                         <div class="token-display"></div>
                         <div class="button-group">
                             <button id="back-to-transcript" class="btn">← Back</button>
@@ -99,7 +99,13 @@ const templates = {
             </select>
         </div>
         <textarea id="system-prompt" rows="6" cols="50" placeholder="System Prompt"></textarea>
-        <button id="summarize-transcript" class="btn ai-btn">Summarize Page with AI</button>
+        <div class="summarize-controls">
+            <button id="summarize-transcript" class="btn ai-btn">Summarize Page with AI</button>
+            <label class="chunk-control">
+                <input type="checkbox" id="enable-chunking" checked>
+                Auto-chunk large content
+            </label>
+        </div>
         <textarea id="transcript-area" rows="5" cols="50" placeholder="Content will appear here..."></textarea>
         <div class="button-group source-buttons">
             <button id="fetch-webpage" class="btn">Get Page Content</button>
