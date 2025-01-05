@@ -206,7 +206,7 @@ const utils = {
             return content;
         }
 
-        const chunkSummaryPrompt = "Remove filler words and phrases keep the key information and structure to make this content smaller. Do not infer or make assumptions. Keep the original tone and style of the content. Do not add any of your own thoughts or opinions. Use different words and phrases to make this content smaller.";
+        const chunkSummaryPrompt = CONSTANTS.API.DEFAULT_CHUNK_SUMMARY_PROMPT;
 
         // Calculate optimal chunk size (leaving room for summary prompt)
         const summaryPromptTokens = utils.estimateTokens(chunkSummaryPrompt);

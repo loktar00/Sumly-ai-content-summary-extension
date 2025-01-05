@@ -1,4 +1,27 @@
 const templates = {
+    mainView: `
+        <div class="prompt-selector">
+            <select id="prompt-selector">
+                <option value="default">Default System Prompt</option>
+            </select>
+        </div>
+        <textarea id="system-prompt" rows="6" cols="50" placeholder="System Prompt"></textarea>
+        <div class="summarize-controls">
+            <button id="summarize-transcript" class="btn ai-btn">Summarize Page with AI</button>
+            <div class="chunk-control">
+                <label>
+                    <input type="checkbox" id="enable-chunking" checked>
+                    <span>Auto-chunk large content</span>
+                </label>
+            </div>
+        </div>
+        <textarea id="transcript-area" rows="5" cols="50" placeholder="Content will appear here..."></textarea>
+        <div class="button-group source-buttons">
+            <button id="fetch-webpage" class="btn">Get Page Content</button>
+            <button id="fetch-current-transcript" class="btn">Get Transcript</button>
+            <button id="copy-to-clipboard" class="btn">Copy to Clipboard</button>
+        </div>
+    `,
     summary: `
         <div class="summary-content">
             <div class="model-label">
@@ -90,27 +113,6 @@ const templates = {
                     <button id="save-settings" class="btn">Save Settings</button>
                 </div>
             </div>
-        </div>
-    `,
-    mainView: `
-        <div class="prompt-selector">
-            <select id="prompt-selector">
-                <option value="default">Default System Prompt</option>
-            </select>
-        </div>
-        <textarea id="system-prompt" rows="6" cols="50" placeholder="System Prompt"></textarea>
-        <div class="summarize-controls">
-            <button id="summarize-transcript" class="btn ai-btn">Summarize Page with AI</button>
-            <label class="chunk-control">
-                <input type="checkbox" id="enable-chunking" checked>
-                Auto-chunk large content
-            </label>
-        </div>
-        <textarea id="transcript-area" rows="5" cols="50" placeholder="Content will appear here..."></textarea>
-        <div class="button-group source-buttons">
-            <button id="fetch-webpage" class="btn">Get Page Content</button>
-            <button id="fetch-current-transcript" class="btn">Get Transcript</button>
-            <button id="copy-to-clipboard" class="btn">Copy to Clipboard</button>
         </div>
     `
 };

@@ -704,9 +704,10 @@ select option {
 
 .summarize-controls {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
+    width: 100%;
 }
 
 .chunk-control {
@@ -715,7 +716,15 @@ select option {
     gap: var(--spacing-sm);
     font-size: var(--font-size-sm);
     color: var(--text-color);
-    opacity: 0.9;
+}
+
+.chunk-control label {
+    display: flex;
+    align-items: center;
+}
+
+.chunk-control label span {
+    min-width: 100%;
 }
 
 .chunk-control input[type="checkbox"] {
