@@ -133,4 +133,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-[MIT License](LICENSE)
+[Apache 2.0 License](LICENSE)
