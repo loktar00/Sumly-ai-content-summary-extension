@@ -1,5 +1,5 @@
 // Simple markdown parser
-window.markdownToHtml = (markdown) => {
+export const markdownToHtml = (markdown) => {
     return markdown
         // Headers
         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
@@ -26,7 +26,7 @@ window.markdownToHtml = (markdown) => {
         .replace(/^>(.+)/gm, '<blockquote>$1</blockquote>')
 
         // Code blocks
-        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+        .replace(/```([\s\S]*?)```/g, '<pre><code><p>$1</p></code></pre>')
         .replace(/`([^`]+)`/g, '<code>$1</code>')
 
         // Paragraphs

@@ -1,4 +1,13 @@
-const templates = {
+import { ui } from './ui.js';
+import { api } from './api.js';
+import { utils } from './utils.js';
+import { promptManager } from './prompt-manager.js';
+import { handlers } from './handlers.js';
+import { state } from './state.js';
+import { markdownToHtml } from './markdown.js';
+import { chat } from './chat.js';
+
+export const templates = {
     mainView: `
         <div class="prompt-selector">
             <select id="prompt-selector">
@@ -60,6 +69,7 @@ const templates = {
     `,
     promptManager: `
         <div class="prompt-manager">
+            <button id="back-button" class="btn back-btn">← Back</button>
             <div class="prompt-form">
                 <div class="prompt-url-input">
                     <input type="text" id="prompt-pattern" placeholder="URL pattern (e.g., reddit.com/user)">
@@ -89,6 +99,7 @@ const templates = {
     `,
     settings: `
         <div class="settings-content">
+            <button id="back-button" class="btn back-btn">← Back</button>
             <div class="settings-form">
                 <div class="form-group">
                     <label for="ai-url">Ollama Server URL:</label>
@@ -117,8 +128,266 @@ const templates = {
     `
 };
 
-// Template rendering function
-function renderTemplate(templateName, data = {}) {
+// Template initializers object to hold setup functions for each template
+const templateInitializers = {
+    mainView: () => {
+        const openOptions = document.getElementById("open-options");
+        const managePrompts = document.getElementById("manage-prompts");
+        const fetchTranscript = document.getElementById("fetch-current-transcript");
+        const fetchWebpage = document.getElementById("fetch-webpage");
+        const copyClipboard = document.getElementById("copy-to-clipboard");
+        const summarize = document.getElementById("summarize-transcript");
+        const promptSelector = document.getElementById("prompt-selector");
+        const systemPrompt = document.getElementById("system-prompt");
+
+        // Main button handlers
+        openOptions?.addEventListener("click", () => renderTemplateAndInitialize('settings', {}));
+        managePrompts?.addEventListener("click", handlers.handleManagePrompts);
+        fetchTranscript?.addEventListener("click", handlers.handleFetchTranscript);
+        fetchWebpage?.addEventListener("click", handlers.handleFetchWebpage);
+        copyClipboard?.addEventListener("click", handlers.handleCopyToClipboard);
+        summarize?.addEventListener("click", handlers.handleSummarize);
+
+        // Prompt selector handler - only updates textarea content
+        if (promptSelector && systemPrompt) {
+            promptSelector.addEventListener('change', async () => {
+                const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+                const defaultPrompt = await api.getSystemPrompt();
+
+                const selectedPattern = promptSelector.value;
+                systemPrompt.value = selectedPattern === 'default'
+                    ? defaultPrompt
+                    : savedPrompts[selectedPattern].content;
+            });
+        }
+
+        // Load initial prompts and system prompt
+        ui.loadSystemPrompt();
+        ui.loadPromptSelector();
+    },
+
+    settings: async () => {
+        // Initialize settings
+        const aiUrl = document.getElementById('ai-url');
+        const aiModel = document.getElementById('ai-model');
+        const numCtx = document.getElementById('num-ctx');
+        const fetchModels = document.getElementById('fetch-models');
+        const saveSettings = document.getElementById('save-settings');
+        const backBtn = document.getElementById('back-button');
+
+        // Load current settings
+        const savedSettings = await api.getAiSettings();
+        aiUrl.value = savedSettings.url;
+        numCtx.value = savedSettings.numCtx;
+
+        backBtn.addEventListener('click', () => {
+            renderTemplateAndInitialize('mainView', {});
+        });
+
+        // Fetch models handler
+        fetchModels.addEventListener('click', async () => {
+            try {
+                aiModel.disabled = true;
+                aiModel.innerHTML = '<option value="">Loading...</option>';
+
+                const response = await fetch(`${aiUrl.value}/api/tags`);
+                if (!response.ok) throw new Error('Failed to fetch models');
+
+                const data = await response.json();
+                const models = data.models || [];
+
+                aiModel.innerHTML = models
+                    .map(model => `<option value="${model.name}">
+                        ${model.name} (${utils.formatSize(model.size)})
+                    </option>`)
+                    .join('');
+
+                aiModel.value = savedSettings.model;
+                aiModel.disabled = false;
+            } catch (error) {
+                alert(`Error fetching models: ${error.message}`);
+                aiModel.innerHTML = '<option value="">Error loading models</option>';
+            }
+        });
+
+        // Save settings handler
+        saveSettings.addEventListener('click', async () => {
+            try {
+                await chrome.storage.sync.set({
+                    aiUrl: aiUrl.value,
+                    aiModel: aiModel.value,
+                    numCtx: parseInt(numCtx.value)
+                });
+                alert('Settings saved successfully!');
+            } catch (error) {
+                alert(`Error saving settings: ${error.message}`);
+            }
+        });
+
+        // Initial model fetch
+        fetchModels.click();
+    },
+
+    promptManager: () => {
+        const saveBtn = document.getElementById('save-prompt');
+        const useCurrentUrlBtn = document.getElementById('use-current-url');
+        const patternInput = document.getElementById('prompt-pattern');
+        const promptContent = document.getElementById('prompt-content');
+        const promptsList = document.getElementById('prompts-list');
+        const backBtn = document.getElementById('back-button');
+
+        backBtn.addEventListener('click', () => {
+            renderTemplateAndInitialize('mainView', {});
+        });
+
+        useCurrentUrlBtn?.addEventListener('click', async () => {
+            const url = await utils.getCurrentUrl();
+            patternInput.value = url;
+        });
+
+        saveBtn?.addEventListener('click', async () => {
+            const pattern = patternInput.value.trim();
+            const content = promptContent.value.trim();
+
+            if (!pattern || !content) {
+                return;
+            }
+
+            await promptManager.savePrompt(pattern, content);
+            await promptManager.loadPrompts();
+
+            patternInput.value = '';
+            promptContent.value = '';
+        });
+
+        promptsList?.addEventListener('click', async (e) => {
+            const action = e.target.dataset.action;
+            const pattern = e.target.dataset.pattern;
+
+            if (!action || !pattern) {
+                return;
+            }
+
+            // Get the current saved prompts
+            const { savedPrompts = {} } = await chrome.storage.sync.get('savedPrompts');
+
+            switch (action) {
+            case 'edit':
+                patternInput.value = pattern;
+                promptContent.value = savedPrompts[pattern].content;
+                break;
+
+            case 'delete':
+                delete savedPrompts[pattern];
+                await chrome.storage.sync.set({ savedPrompts });
+                await promptManager.loadPrompts();
+                break;
+
+            case 'default':
+                // Update the prompt to be default
+                await promptManager.savePrompt(
+                    pattern,
+                    savedPrompts[pattern].content,
+                    true
+                );
+                await promptManager.loadPrompts();
+                break;
+            }
+        });
+
+        promptManager.loadPrompts();
+    },
+
+    summary: async (data) => {
+        const { pageTitle, processedContent, systemPrompt, aiSettings } = data;
+        try {
+            const container = document.querySelector('#panel-content');
+
+            // Initialize conversation history with processed content
+            state.conversationHistory = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `${pageTitle}\n\n${processedContent}` }
+            ];
+
+            // Render the summary template
+            container.innerHTML = renderTemplate('summary', {
+                title: pageTitle,
+                model: aiSettings.model,
+                transcript: `${pageTitle}\n\n${processedContent}`
+            });
+
+            // Update initial token count with full content
+            ui.updateTokenCount(container);
+
+            // Get references to elements after template is rendered
+            const elements = {
+                chatContainer: container.querySelector('#chat-container'),
+                formattedSummary: container.querySelector('#formatted-summary'),
+                chatLoading: container.querySelector('#chat-loading'),
+                chatInput: container.querySelector('#chat-input'),
+                sendButton: container.querySelector('#send-message'),
+                backButton: container.querySelector('#back-to-transcript')
+            };
+
+            if (!elements.chatContainer || !elements.formattedSummary || !elements.chatLoading) {
+                console.error('Required elements not found after template render');
+                return;
+            }
+
+            elements.backButton.addEventListener('click', () => location.reload());
+
+            // Add transcript as first message
+            elements.formattedSummary.innerHTML = `
+                <div class="message user-message">
+                    <div>
+                        ${markdownToHtml(`${systemPrompt}\n\n${processedContent}`)}
+                    </div>
+                </div>
+            `;
+
+            ui.autoScroll(true);
+
+            try {
+                ui.toggleChatElements(true);
+
+                const response = await chat.handleStreamingAIResponse(
+                    aiSettings,
+                    processedContent,
+                    elements.formattedSummary
+                );
+
+                state.conversationHistory.push(
+                    { role: 'user', content: processedContent },
+                    { role: 'assistant', content: response }
+                );
+
+                ui.toggleChatElements(false);
+
+                if (elements.chatInput && elements.sendButton) {
+                    handlers.setupStreamingChatHandlers(
+                        elements.formattedSummary,
+                        elements.chatInput,
+                        elements.sendButton,
+                        aiSettings
+                    );
+                }
+            } catch (error) {
+                elements.chatLoading.innerHTML = `
+                    <div class="error-text">
+                        Error generating summary: ${error.message}
+                    </div>
+                `;
+                ui.toggleChatElements(false);
+                ui.autoScroll(true);
+            }
+        } catch (error) {
+            console.error('Error in handleSummarize:', error);
+            alert(`Failed to generate summary: ${error.message}`);
+        }
+    }
+};
+
+export const renderTemplate = (templateName, data = {}) => {
     let template = templates[templateName];
 
     // Handle regular replacements
@@ -126,5 +395,34 @@ function renderTemplate(templateName, data = {}) {
         template = template.replace(new RegExp(`{{${key}}}`, 'g'), data[key]);
     });
 
-    return template;
+    // Create a temporary container for the template
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = template;
+
+    return tempContainer.innerHTML;
+};
+
+// Update renderTemplate to include initialization
+export function renderTemplateAndInitialize(templateName, data = {}) {
+    const container = document.querySelector('#panel-content');
+
+    if (!container) {
+        console.error('Container not found');
+        return;
+    }
+
+    let template = templates[templateName];
+
+    // Handle regular replacements
+    Object.keys(data).forEach(key => {
+        template = template.replace(new RegExp(`{{${key}}}`, 'g'), data[key]);
+    });
+
+    // Create a temporary container for the template
+    container.innerHTML = template;
+
+    // Initialize the template if an initializer exists
+    if (templateInitializers[templateName]) {
+        templateInitializers[templateName](data);
+    }
 }

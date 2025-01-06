@@ -1,4 +1,4 @@
-const CONSTANTS = {
+export const CONSTANTS = {
     API: {
         DEFAULT_API_URL: "http://localhost:8892",
         DEFAULT_AI_URL: "http://localhost:11434",

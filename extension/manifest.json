@@ -38,11 +38,8 @@
     },
     "web_accessible_resources": [{
         "resources": [
-            "options.html",
-            "summary.html",
             "side-panel.html",
-            "app.js",
-            "side-panel-init.js"
+            "app.js"
         ],
         "matches": ["<all_urls>"]
     }],

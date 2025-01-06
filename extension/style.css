@@ -422,7 +422,11 @@ select:hover,
     display: block;
     padding: var(--spacing-md);
     overflow-x: auto;
-    line-height: 1.4;
+    line-height: 0.8;
+}
+
+.markdown-body pre code p {
+    margin: 0;
 }
 
 .markdown-body blockquote {
