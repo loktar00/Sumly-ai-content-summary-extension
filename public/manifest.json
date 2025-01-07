@@ -1,0 +1,61 @@
+{
+    "manifest_version": 3,
+    "name": "Sumly",
+    "version": "1.0",
+    "description": "Extract and analyze content from any webpage or YouTube video using AI.",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "scripting",
+        "sidePanel",
+        "tabs"
+    ],
+    "host_permissions": [
+        "https://www.youtube.com/*",
+        "https://*.youtube.com/*",
+        "http://*:11434/*",
+        "https://*:11434/*",
+        "<all_urls>"
+    ],
+    "action": {
+        "default_icon": {
+            "16": "icons/icon16.png",
+            "32": "icons/icon32.png",
+            "48": "icons/icon48.png",
+            "128": "icons/icon128.png"
+        },
+        "default_title": "Sumly"
+    },
+    "side_panel": {
+        "default_path": "index.html"
+    },
+    "commands": {
+        "_execute_action": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+Y"
+            }
+        }
+    },
+    "web_accessible_resources": [{
+        "resources": [
+            "index.html"
+        ],
+        "matches": ["<all_urls>"]
+    }],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.youtube.com http://*:11434 https://*:11434;"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [{
+        "matches": ["https://www.youtube.com/*"],
+        "js": ["content.js"]
+    }],
+    "icons": {
+        "16": "icons/icon16.png",
+        "32": "icons/icon32.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    }
+}
