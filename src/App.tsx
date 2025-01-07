@@ -1,5 +1,5 @@
 import { Route, Switch, Link } from "wouter";
-import { Summarize } from "./views/Summarize";
+import { Home } from "./views/Home/Home.tsx";
 import { Settings } from "./views/Settings";
 import { PromptManager } from "./views/PromptManager/PromptManager";
 
@@ -23,7 +23,7 @@ export const App = () =>  (
             <div className="panel-content" id="panel-content">
                 <Switch>
                     <Route path="/">
-                        <Summarize />
+                        <Home />
                     </Route>
                     <Route path="/settings">
                         <Settings />
@@ -32,7 +32,7 @@ export const App = () =>  (
                         <PromptManager />
                     </Route>
                     <Route>
-                        <Summarize />
+                        <Home />
                     </Route>
                 </Switch>
             </div>
