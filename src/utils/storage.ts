@@ -80,7 +80,38 @@ class MockStorageArea implements StorageArea {
         }, {} as Record<string, StorageValue>);
     }
 
+    async getBytesInUse(keys?: string | string[]): Promise<number> {
+        if (!keys) {
+            // Return total bytes used
+            return JSON.stringify(Object.fromEntries(this.data)).length;
+        }
+
+        // Calculate bytes for specific keys
+        const keysToCheck = Array.isArray(keys) ? keys : [keys];
+        const selectedData: Record<string, StorageValue> = {};
+
+        keysToCheck.forEach(key => {
+            const value = this.data.get(key);
+            if (value !== undefined) {
+                selectedData[key] = value;
+            }
+        });
+
+        return JSON.stringify(selectedData).length;
+    }
+
+    private checkQuota(operation: Record<string, StorageValue>): boolean {
+        const currentSize = JSON.stringify(Object.fromEntries(this.data)).length;
+        const operationSize = JSON.stringify(operation).length;
+        return (currentSize + operationSize) <= this.quotaBytes;
+    }
+
     async set(items: Record<string, StorageValue>): Promise<void> {
+        // Check quota before setting
+        if (!this.checkQuota(items)) {
+            throw new Error(`Quota exceeded for ${this.areaName} storage. Limit is ${this.quotaBytes} bytes.`);
+        }
+
         console.log(`Mock ${this.areaName} storage set:`, items);
 
         const changes: Record<string, StorageChange> = {};

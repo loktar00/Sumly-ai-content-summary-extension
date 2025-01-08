@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, KeyboardEvent } from 'react';
 import { Link } from 'wouter';
 import { handleStreamingResponse } from '@/utils/chat';
 import { api } from '@/api/api';
@@ -102,6 +102,13 @@ export const Summary = () => {
         await handleAIInteraction(message);
     };
 
+    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    };
+
     if (!settings) {
         return (
             <div className="summary-content">
@@ -157,8 +164,8 @@ export const Summary = () => {
                             ref={chatInputRef}
                             id="chat-input"
                             rows={3}
-                            placeholder="Ask a question about the content..."
-                        />
+                            onKeyDown={handleKeyDown}
+                            placeholder="Ask a question about the content..." />
                         <div className="token-display"></div>
                         <div className="button-group">
                             <Link href="/"><button className="btn">← Back</button></Link>
@@ -166,8 +173,7 @@ export const Summary = () => {
                                 id="send-message"
                                 className="btn"
                                 onClick={handleSendMessage}
-                                disabled={isLoading}
-                            >
+                                disabled={isLoading} >
                                 Send
                             </button>
                         </div>
