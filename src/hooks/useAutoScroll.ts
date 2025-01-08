@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const SCROLL_TOLERANCE = 100; // You can move this to constants if needed
+const SCROLL_TOLERANCE = 100;
 
 export const useAutoScroll = (deps: any[] = []) => {
     const messagesRef = useRef<HTMLDivElement>(null);

@@ -82,15 +82,23 @@ export async function handleStreamingAIResponse(settings: { url: string; model: 
     }
 }
 
-export async function handleStreamingResponse(settings: { url: string; model: string; numCtx: number }, prompt: string, onUpdate: (content: string) => void, systemPromptOverride = null) {
+export async function handleStreamingResponse(
+    settings: { url: string; model: string; numCtx: number },
+    prompt: string,
+    onUpdate: (content: string) => void,
+    conversationHistory: { role: string; content: string }[] = [],
+    systemPromptOverride = null
+) {
     try {
         const endpoint = `${settings.url}/api/chat`;
         let abortController = new AbortController();
 
-        const messages =[
+        // Include conversation history in messages
+        const messages = [
             { role: 'system', content: systemPromptOverride },
+            ...conversationHistory,
             { role: 'user', content: prompt }
-        ];
+        ].filter(msg => msg.content != null); // Filter out null system prompt if not provided
 
         const requestBody = {
             model: settings.model,
@@ -139,7 +147,6 @@ export async function handleStreamingResponse(settings: { url: string; model: st
                         if (data.message?.content) {
                             accumulatedResponse += data.message.content;
                             onUpdate(markdownToHtml(accumulatedResponse));
-                            // ui.autoScroll();
                         }
                     } catch (e) {
                         console.error('Error parsing JSON:', e);
@@ -156,4 +163,49 @@ export async function handleStreamingResponse(settings: { url: string; model: st
         console.error('Error in handleStreamingAIResponse:', error);
         throw error;
     }
+}
+
+export function estimateTokens(text: string) {
+    if (!text) return 0;
+
+    // Count words (splitting on whitespace and punctuation)
+    const words = text.trim().split(/[\s,.!?;:'"()[\]{}|\\/<>]+/).filter(Boolean);
+
+    // Count numbers (including decimals)
+    const numbers = text.match(/\d+\.?\d*/g) || [];
+
+    // Count special tokens (common in code and URLs)
+    const specialTokens = text.match(/[+\-*/=_@#$%^&]+/g) || [];
+
+    // Base calculation:
+    // - Most words are 1-2 tokens
+    // - Numbers are usually 1 token each
+    // - Special characters often get their own token
+    // - Add 10% for potential underestimation
+    const estimate = Math.ceil(
+        (words.length * 1.3) +          // Average 1.3 tokens per word
+        (numbers.length) +              // Count numbers
+        (specialTokens.length) +        // Count special tokens
+        (text.length / 100)            // Add small factor for length
+    );
+
+    return Math.max(1, estimate);
+}
+
+export function calculateConversationTokens(history: any[]) {
+    // Add extra tokens for message formatting and role indicators
+    const formatTokens = history.length * 4; // ~4 tokens per message for format
+
+    // Sum up tokens from all messages
+    const contentTokens = history.reduce((total, message) => {
+        return total + estimateTokens(message.content);
+    }, 0);
+
+    return formatTokens + contentTokens;
+}
+
+export function updateTokenCount(conversationHistory: any[]) {
+    const totalTokens = calculateConversationTokens(conversationHistory);
+    console.log('Total tokens:', totalTokens);
+    return totalTokens.toLocaleString();
 }

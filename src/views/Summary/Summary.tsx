@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, KeyboardEvent } from 'react';
 import { Link } from 'wouter';
-import { handleStreamingResponse } from '@/utils/chat';
+import { handleStreamingResponse, updateTokenCount } from '@/utils/chat';
 import { api } from '@/api/api';
 import { MessageList } from './MessageList';
 import { StreamingMessage } from './StreamingMessage';
 import { Message, AISettings } from './types';
 import { useSummaryStore } from '@/stores/Summary';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
+import { Loader } from '@/components/Loader';
 
 export const Summary = () => {
     const { content, prompt } = useSummaryStore();
@@ -14,6 +15,7 @@ export const Summary = () => {
     const [error, setError] = useState<string | null>(null);
     const [settings, setSettings] = useState<AISettings | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
+    const [tokenCount, setTokenCount] = useState<string>('');
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
     const initializationRef = useRef(false);
@@ -29,27 +31,36 @@ export const Summary = () => {
             setIsLoading(true);
             setError(null);
 
-            // Add user message immediately
+            // Add user message immediately and update token count
+            let newMessages: Message[];
             if (isInitial) {
-                setMessages([{ role: 'user', content: message }]);
+                newMessages = [{ role: 'user', content: message }];
+                setMessages(newMessages);
             } else {
-                setMessages(prev => [...prev, { role: 'user', content: message }]);
+                newMessages = [...messages, { role: 'user', content: message }];
+                setMessages(newMessages);
             }
+            setTokenCount(updateTokenCount(newMessages));
 
             // Create update handler for streaming response
             const handleUpdate = (streamContent: string) => {
                 setStreamingMessage(streamContent);
             };
 
-            // Get streaming response
+            // Get streaming response with conversation history
             const response = await handleStreamingResponse(
                 settings,
                 message,
-                handleUpdate
+                handleUpdate,
+                newMessages
             );
 
-            // Add completed response to messages
-            setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+            // Add completed response to messages and update token count
+            setMessages(prev => {
+                const updatedMessages: Message[] = [...prev, { role: 'assistant', content: response }];
+                setTokenCount(updateTokenCount(updatedMessages));
+                return updatedMessages;
+            });
             setStreamingMessage(''); // Clear streaming message
 
         } catch (error) {
@@ -109,43 +120,24 @@ export const Summary = () => {
         }
     };
 
-    if (!settings) {
-        return (
-            <div className="summary-content">
-                <div className="loading-container">
-                    <div className="neon-loader">
-                        {Array.from({ length: 5 }).map((_, index) => (
-                            <div key={index} />
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="summary-content">
             <div className="model-label">
-                <span className="glow text">Model: {settings.model}</span>
+                <span className="glow text">Model: {settings?.model}</span>
             </div>
             <div className="main-content">
                 <div id="chat-container" className="chat-container" role="log" aria-live="polite">
                     <div
                         ref={messagesRef}
-                        className="chat-messages"
-                    >
+                        className="chat-messages">
                         <MessageList messages={messages} />
                         {streamingMessage && <StreamingMessage content={streamingMessage} />}
                     </div>
 
                     {isLoading && (
                         <div id="chat-loading" className="chat-loading">
-                            <div className="neon-loader">
-                                {Array.from({ length: 5 }).map((_, index) => (
-                                    <div key={index} />
-                                ))}
-                            </div>
-                            <div className="token-display"></div>
+                            <Loader />
+                            <div className="token-display">{tokenCount} / {settings?.numCtx}</div>
                             <div className="button-group loading-controls">
                                 <Link href="/"><button className="btn">← Back</button></Link>
                                 <button className="btn danger-btn">Stop</button>
@@ -166,7 +158,7 @@ export const Summary = () => {
                             rows={3}
                             onKeyDown={handleKeyDown}
                             placeholder="Ask a question about the content..." />
-                        <div className="token-display"></div>
+                        <div className="token-display">{tokenCount} / {settings?.numCtx}</div>
                         <div className="button-group">
                             <Link href="/"><button className="btn">← Back</button></Link>
                             <button
