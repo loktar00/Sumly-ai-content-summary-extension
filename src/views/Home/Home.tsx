@@ -68,6 +68,17 @@ export const Home = () =>  {
         }
     }
 
+    const handleCopyToClipboard = async () => {
+        if (transcriptAreaRef.current) {
+            try {
+                await navigator.clipboard.writeText(transcriptAreaRef.current.value);
+                alert("Transcript copied to clipboard!");
+        } catch (error) {
+                alert(`Failed to copy text to clipboard. ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+    }
+
     return (
         <>
             <PromptSelector onSelect={handlePromptChange}/>
@@ -103,7 +114,7 @@ export const Home = () =>  {
             <div className="button-group source-buttons">
                 <button id="fetch-webpage" className="btn" onClick={handleFetchWebpage}>Get Page Content</button>
                 <button id="fetch-current-transcript" className="btn" onClick={handleFetchTranscript}>Get Transcript</button>
-                <button id="copy-to-clipboard" className="btn">Copy to Clipboard</button>
+                <button id="copy-to-clipboard" className="btn" onClick={handleCopyToClipboard}>Copy to Clipboard</button>
             </div>
         </>
     );
