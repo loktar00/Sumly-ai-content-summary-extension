@@ -6,7 +6,7 @@ import { CONSTANTS } from '@/constants';
 import { formatSize } from '@/utils/models';
 
 export const Settings = () => {
-    const [aiUrl, setAiUrl] = useState('');
+    const [aiUrl, setAiUrl] = useState(CONSTANTS.API.DEFAULT_AI_URL);
     const [aiModel, setAiModel] = useState('');
     const [numCtx, setNumCtx] = useState(CONSTANTS.API.DEFAULT_NUM_CTX);
     const [models, setModels] = useState<Array<{ name: string; size: number }>>([]);
@@ -49,11 +49,12 @@ export const Settings = () => {
     };
 
     const handleSave = async () => {
-        await storage.set({
+        await storage.sync.set({
             aiUrl,
             aiModel,
             numCtx: parseInt(numCtx.toString())
         });
+        handleFetchModels();
         alert('Settings saved successfully!');
     };
 

@@ -9,9 +9,17 @@ export type Prompt = {
     isDefault: boolean;
 }
 
+interface StorageData {
+    savedPrompts?: Record<string, {
+        content: string;
+        isDefault: boolean;
+    }>;
+}
+
 // Save a prompt
 export async function savePrompt(pattern: string, prompt: string, makeDefault = false) {
-    const { savedPrompts = {} } = await storage.get<Record<string, Prompt>>('savedPrompts');
+    const result = await storage.sync.get('savedPrompts') as StorageData;
+    const savedPrompts = result.savedPrompts || {};
 
     // If making this prompt default, remove default flag from others
     if (makeDefault) {
@@ -28,19 +36,17 @@ export async function savePrompt(pattern: string, prompt: string, makeDefault = 
     // Clean pattern and save prompt
     const cleanPattern = pattern.replace(/^www\./, '');
     savedPrompts[cleanPattern] = {
-        id: cleanPattern,
-        name: cleanPattern,
         content: prompt,
-        pattern: cleanPattern,
         isDefault: makeDefault
     };
 
-    await storage.set({ savedPrompts });
+    await storage.sync.set({ savedPrompts });
 }
 
 // Get all prompts including system default
 export async function getPrompts(): Promise<Prompt[]> {
-    const { savedPrompts = {} } = await storage.get<Record<string, Prompt>>('savedPrompts');
+    const result = await storage.sync.get('savedPrompts') as StorageData;
+    const savedPrompts = result.savedPrompts || {};
 
     // Convert saved prompts to array format
     const prompts = Object.entries(savedPrompts).map(([pattern, prompt]) => ({
@@ -52,7 +58,7 @@ export async function getPrompts(): Promise<Prompt[]> {
     }));
 
     // Check if we have a default prompt
-    const hasDefault = prompts.some(prompt => prompt.isDefault) || prompts.length === 0;
+    const hasDefault = prompts.some(prompt => prompt.isDefault) || prompts.length;
 
     // If no default exists, add the system default
     if (!hasDefault) {

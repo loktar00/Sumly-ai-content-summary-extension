@@ -33,7 +33,7 @@ export const App = () =>  (
                         <PromptManager />
                     </Route>
                     <Route path="/summary">
-                        <Summary model="gpt-4o" />
+                        <Summary />
                     </Route>
                     <Route>
                         <Home />

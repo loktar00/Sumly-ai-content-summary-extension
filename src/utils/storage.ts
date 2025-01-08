@@ -1,47 +1,167 @@
 // Types to match Chrome's storage API
 type StorageValue = string | number | boolean | null | undefined | StorageValue[] | { [key: string]: StorageValue };
-type StorageArea = {
-    get(keys?: string | string[] | Record<string, StorageValue>): Promise<Record<string, StorageValue>>;
-    set(items: Record<string, StorageValue>): Promise<void>;
+type StorageChange = {
+    oldValue?: StorageValue;
+    newValue?: StorageValue;
+};
+type StorageChangeEvent = {
+    changes: { [key: string]: StorageChange };
+    areaName: 'sync' | 'local' | 'managed' | 'session';
 };
 
-// Mock storage for development
-const mockStorage = {
-    data: new Map<string, StorageValue>(),
+// Storage area interface matching Chrome's API
+interface StorageArea {
+    get(keys?: string | string[] | Record<string, StorageValue>): Promise<Record<string, StorageValue>>;
+    set(items: Record<string, StorageValue>): Promise<void>;
+    remove(keys: string | string[]): Promise<void>;
+    clear(): Promise<void>;
+    getBytesInUse?(keys?: string | string[]): Promise<number>;
+}
 
-    get: async (keys?: string | string[] | Record<string, StorageValue>) => {
-        console.log('Mock storage get:', keys);
+// Mock storage implementation
+class MockStorageArea implements StorageArea {
+    private data: Map<string, StorageValue> = new Map();
+    private listeners: ((changes: StorageChangeEvent) => void)[] = [];
+    private areaName: 'sync' | 'local' | 'managed' | 'session';
+    private quotaBytes: number;
 
-        // If no keys, return all data
+    constructor(areaName: 'sync' | 'local' | 'managed' | 'session', quotaBytes: number) {
+        this.areaName = areaName;
+        this.quotaBytes = quotaBytes;
+
+        // Load persisted data from localStorage
+        const storedData = localStorage.getItem(`chrome.storage.${areaName}`);
+        if (storedData) {
+            try {
+                const parsed = JSON.parse(storedData) as Record<string, StorageValue>;
+                Object.entries(parsed).forEach(([key, value]) => {
+                    this.data.set(key, value);
+                });
+            } catch (e) {
+                console.error(`Error loading ${areaName} storage data:`, e);
+            }
+        }
+    }
+
+    private persistData(): void {
+        const dataObj = Object.fromEntries(this.data.entries());
+        localStorage.setItem(`chrome.storage.${this.areaName}`, JSON.stringify(dataObj));
+    }
+
+    private notifyListeners(changes: Record<string, StorageChange>): void {
+        const event: StorageChangeEvent = {
+            changes,
+            areaName: this.areaName
+        };
+        this.listeners.forEach(listener => listener(event));
+    }
+
+    async get(keys?: string | string[] | Record<string, StorageValue>): Promise<Record<string, StorageValue>> {
+        console.log(`Mock ${this.areaName} storage get:`, keys);
+
         if (!keys) {
-            return Object.fromEntries(mockStorage.data.entries());
+            return Object.fromEntries(this.data.entries());
         }
 
-        // Handle different types of keys parameter
         if (typeof keys === 'string') {
-            return { [keys]: mockStorage.data.get(keys) };
+            return { [keys]: this.data.get(keys) };
         }
 
         if (Array.isArray(keys)) {
             return keys.reduce((acc, key) => {
-                acc[key] = mockStorage.data.get(key);
+                acc[key] = this.data.get(key);
                 return acc;
             }, {} as Record<string, StorageValue>);
         }
 
-        // Handle object with default values
         return Object.keys(keys).reduce((acc, key) => {
-            const value = mockStorage.data.get(key);
-            acc[key] = value !== undefined ? value : keys[key];
+            acc[key] = this.data.has(key) ? this.data.get(key) : keys[key];
             return acc;
         }, {} as Record<string, StorageValue>);
-    },
+    }
 
-    set: async (items: Record<string, StorageValue>) => {
-        console.log('Mock storage set:', items);
+    async set(items: Record<string, StorageValue>): Promise<void> {
+        console.log(`Mock ${this.areaName} storage set:`, items);
+
+        const changes: Record<string, StorageChange> = {};
+
         Object.entries(items).forEach(([key, value]) => {
-            mockStorage.data.set(key, value);
+            const oldValue = this.data.get(key);
+            if (oldValue !== value) {
+                changes[key] = { oldValue, newValue: value };
+                this.data.set(key, value);
+            }
         });
+
+        if (Object.keys(changes).length > 0) {
+            this.persistData();
+            this.notifyListeners(changes);
+        }
+    }
+
+    async remove(keys: string | string[]): Promise<void> {
+        const keysArray = Array.isArray(keys) ? keys : [keys];
+        const changes: Record<string, StorageChange> = {};
+
+        keysArray.forEach(key => {
+            if (this.data.has(key)) {
+                changes[key] = { oldValue: this.data.get(key) };
+                this.data.delete(key);
+            }
+        });
+
+        if (Object.keys(changes).length > 0) {
+            this.persistData();
+            this.notifyListeners(changes);
+        }
+    }
+
+    async clear(): Promise<void> {
+        const changes: Record<string, StorageChange> = {};
+        this.data.forEach((value, key) => {
+            changes[key] = { oldValue: value };
+        });
+
+        this.data.clear();
+        this.persistData();
+        this.notifyListeners(changes);
+    }
+
+    addListener(callback: (event: StorageChangeEvent) => void): void {
+        this.listeners.push(callback);
+    }
+
+    removeListener(callback: (event: StorageChangeEvent) => void): void {
+        const index = this.listeners.indexOf(callback);
+        if (index > -1) {
+            this.listeners.splice(index, 1);
+        }
+    }
+}
+
+// Create mock storage areas with appropriate quota limits
+const mockLocal = new MockStorageArea('local', 10485760);  // 10MB
+const mockSync = new MockStorageArea('sync', 102400);      // 100KB
+const mockSession = new MockStorageArea('session', 10485760); // 10MB
+const mockManaged = new MockStorageArea('managed', 10485760); // 10MB
+
+// Create the mock chrome.storage API
+const mockChromeStorage = {
+    local: mockLocal,
+    sync: mockSync,
+    session: mockSession,
+    managed: mockManaged,
+    onChanged: {
+        addListener: (callback: (changes: Record<string, StorageChange>, areaName: string) => void) => {
+            [mockLocal, mockSync, mockSession, mockManaged].forEach(area => {
+                area.addListener((event) => callback(event.changes, event.areaName));
+            });
+        },
+        removeListener: (callback: (changes: Record<string, StorageChange>, areaName: string) => void) => {
+            [mockLocal, mockSync, mockSession, mockManaged].forEach(area => {
+                area.removeListener((event) => callback(event.changes, event.areaName));
+            });
+        }
     }
 };
 
@@ -50,19 +170,5 @@ const isExtensionContext = () => {
     return typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync;
 };
 
-// Storage interface that matches Chrome's storage.sync API
-export const storage: StorageArea = {
-    get: async (keys?: string | string[] | Record<string, StorageValue>) => {
-        if (isExtensionContext()) {
-            return chrome.storage.sync.get(keys);
-        }
-        return mockStorage.get(keys);
-    },
-
-    set: async (items: Record<string, StorageValue>) => {
-        if (isExtensionContext()) {
-            return chrome.storage.sync.set(items);
-        }
-        return mockStorage.set(items);
-    }
-};
+// Export the storage interface
+export const storage = isExtensionContext() ? chrome.storage : mockChromeStorage;
