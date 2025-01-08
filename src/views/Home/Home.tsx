@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { PromptSelector } from "./PromptSelector";
 import { getDefaultPrompt } from "@/utils/prompts";
+import { useLocation } from "wouter";
 
 export const Home = () =>  {
 
     const [selectedPrompt, setSelectedPrompt] = useState<string>('');
+    const [, setLocation] = useLocation();
 
     // Load default prompt on component mount
     useEffect(() => {
@@ -32,7 +34,7 @@ export const Home = () =>  {
                 onChange={(e) => setSelectedPrompt(e.target.value)}
             />
             <div className="summarize-controls">
-                <button id="summarize-transcript" className="btn ai-btn">Summarize Page with AI</button>
+                <button id="summarize-transcript" className="btn ai-btn" onClick={() => setLocation('/summary')}>Summarize Page with AI</button>
                 <div className="chunk-control">
                     <label>
                         <input type="checkbox" id="enable-chunking" checked />

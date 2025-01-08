@@ -2,6 +2,7 @@ import { Route, Switch, Link } from "wouter";
 import { Home } from "./views/Home/Home.tsx";
 import { Settings } from "./views/Settings";
 import { PromptManager } from "./views/PromptManager/PromptManager";
+import { Summary } from "./views/Summary/Summary";
 
 export const App = () =>  (
     <body>
@@ -30,6 +31,9 @@ export const App = () =>  (
                     </Route>
                     <Route path="/prompt-manager">
                         <PromptManager />
+                    </Route>
+                    <Route path="/summary">
+                        <Summary model="gpt-4o" />
                     </Route>
                     <Route>
                         <Home />

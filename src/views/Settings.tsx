@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'wouter';
 import { api } from '@/api/api';
 import { storage } from '@/utils/storage';
 import { CONSTANTS } from '@/constants';
+import { formatSize } from '@/utils/models';
 
 export const Settings = () => {
     const [aiUrl, setAiUrl] = useState('');
@@ -57,7 +59,9 @@ export const Settings = () => {
 
     return (
         <div className="settings-content">
-            <button id="back-button" className="btn back-btn">← Back</button>
+            <Link href="/">
+                <button id="back-button" className="btn back-btn">← Back</button>
+            </Link>
             <div className="settings-form">
                 <div className="form-group">
                     <label htmlFor="ai-url">Ollama Server URL:</label>
@@ -79,7 +83,7 @@ export const Settings = () => {
                     >
                         {models.map(model => (
                             <option key={model.name} value={model.name}>
-                                {model.name}
+                                {model.name} ({formatSize(model.size)})
                             </option>
                         ))}
                     </select>
