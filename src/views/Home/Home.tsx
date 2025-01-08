@@ -2,17 +2,19 @@ import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { PromptSelector } from "./PromptSelector";
 import { getDefaultPrompt } from "@/utils/prompts";
+import { useSummaryStore } from "@/stores/Summary";
 
 export const Home = () =>  {
     const [selectedPromptContent, setSelectedPromptContent] = useState<string>('');
     const [pageTitle, setPageTitle] = useState<string>('');
     const [, setLocation] = useLocation();
+    const { setContent, setPrompt } = useSummaryStore();
 
-    // Load default prompt on component mount
     useEffect(() => {
         const loadDefaultPrompt = async () => {
             const defaultPrompt = await getDefaultPrompt();
             setSelectedPromptContent(defaultPrompt.content);
+            setPrompt(defaultPrompt.content);
         };
 
         loadDefaultPrompt();
@@ -20,24 +22,18 @@ export const Home = () =>  {
 
     const handlePromptChange = (content: string) => {
         setSelectedPromptContent(content);
+        setPrompt(content);
     };
 
     const handleSummarize = () => {
-        // Get content from textarea
         const transcriptArea = document.getElementById('transcript-area') as HTMLTextAreaElement;
-        const content = transcriptArea?.value || '';
+        const userContent = transcriptArea?.value || '';
+        setContent(userContent);
 
         // Get page title (you might want to get this from the actual page)
         setPageTitle('Current Page');
 
-        // Navigate to summary view with state
-        setLocation('/summary', {
-            state: {
-                content,
-                pageTitle,
-                systemPrompt: selectedPromptContent,
-            }
-        });
+        setLocation('/summary');
     };
 
     return (

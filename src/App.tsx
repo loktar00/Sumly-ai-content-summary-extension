@@ -2,7 +2,7 @@ import { Route, Switch, Link } from "wouter";
 import { Home } from "./views/Home/Home.tsx";
 import { Settings } from "./views/Settings";
 import { PromptManager } from "./views/PromptManager/PromptManager";
-import { Summary } from "./views/Summary/Summary";
+import { Summary } from "./views/Summary/Summary.tsx";
 
 export const App = () =>  (
     <body>

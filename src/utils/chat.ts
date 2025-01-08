@@ -36,29 +36,14 @@ export const markdownToHtml = (markdown: string) => {
 };
 
 // Streaming response from the server
-export async function handleStreamingAIResponse(
-    settings: { url: string; model: string; numCtx: number },
-    message: string,
-    outputElement: HTMLElement | null
-): Promise<string> {
-    if (!outputElement) throw new Error('Output element not found');
-
-    // Add response container
-    outputElement.innerHTML += `
-        <div class="message assistant-message">
-            <div class="assistant-content"></div>
-        </div>
-    `;
-
-    const responseContainer = outputElement.querySelector('.assistant-content:last-child');
-    if (!responseContainer) throw new Error('Response container not found');
-
+export async function handleStreamingAIResponse(settings: { url: string; model: string; numCtx: number }, message: string, onUpdate: (content: string) => void ): Promise<string> {
     let fullResponse = '';
 
     try {
         const response = await fetch(`${settings.url}/api/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+
             body: JSON.stringify({
                 model: settings.model,
                 messages: [{ role: 'user', content: message }],
@@ -67,10 +52,13 @@ export async function handleStreamingAIResponse(
         });
 
         const reader = response.body?.getReader();
+        console.log('Reader:', reader);
         if (!reader) throw new Error('Failed to get response reader');
 
         while (true) {
             const { done, value } = await reader.read();
+            console.log('Done:', done);
+            console.log('Value:', value);
             if (done) break;
 
             const chunk = new TextDecoder().decode(value);
@@ -80,15 +68,92 @@ export async function handleStreamingAIResponse(
                 const json = JSON.parse(line);
                 if (json.response) {
                     fullResponse += json.response;
-                    responseContainer.innerHTML = markdownToHtml(fullResponse);
+                    onUpdate(markdownToHtml(fullResponse));
                 }
             }
         }
 
+        console.log('Full response:', fullResponse);
         return fullResponse;
 
     } catch (error) {
         console.error('Error in streaming response:', error);
+        throw error;
+    }
+}
+
+export async function handleStreamingResponse(settings: { url: string; model: string; numCtx: number }, prompt: string, onUpdate: (content: string) => void, systemPromptOverride = null) {
+    try {
+        const endpoint = `${settings.url}/api/chat`;
+        let abortController = new AbortController();
+
+        const messages =[
+            { role: 'system', content: systemPromptOverride },
+            { role: 'user', content: prompt }
+        ];
+
+        const requestBody = {
+            model: settings.model,
+            messages: messages,
+            options: {
+                temperature: 0.8,
+                num_ctx: settings.numCtx,
+            },
+            stream: true
+        };
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: abortController.signal
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`API request failed (${response.status}): ${errorText || response.statusText}`);
+        }
+
+        const reader = response.body?.getReader();
+        let accumulatedResponse = '';
+
+        try {
+            while (true) {
+                if (!reader) {
+                    break;
+                }
+
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
+                }
+
+                const chunk = new TextDecoder().decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.message?.content) {
+                            accumulatedResponse += data.message.content;
+                            onUpdate(markdownToHtml(accumulatedResponse));
+                            // ui.autoScroll();
+                        }
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error in handleStreamingAIResponse:', error);
+            throw error;
+        }
+
+        return accumulatedResponse;
+    } catch (error) {
+        console.error('Error in handleStreamingAIResponse:', error);
         throw error;
     }
 }

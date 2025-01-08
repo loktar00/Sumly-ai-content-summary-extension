@@ -46,7 +46,6 @@ body {
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--background-color);
   margin: 0;
-  text-align: center;
   min-width: var(--container-width);
   font-weight: var(--font-weight-normal);
   font-size: var(--font-size-md);
@@ -557,6 +556,7 @@ hr {
   margin-bottom: var(--spacing-md);
   border: 1px solid var(--ai-accent-color);
   font-size: var(--font-size-sm);
+  text-align: center;
 }
 
 .model-label .glow.text {

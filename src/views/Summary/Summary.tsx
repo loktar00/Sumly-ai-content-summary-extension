@@ -1,112 +1,120 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
-import { markdownToHtml, handleStreamingAIResponse } from '@/utils/chat';
+import { handleStreamingResponse } from '@/utils/chat';
 import { api } from '@/api/api';
-import { getDefaultPrompt } from '@/utils/prompts';
+import { MessageList } from './MessageList';
+import { StreamingMessage } from './StreamingMessage';
+import { Message, AISettings } from './types';
+import { useSummaryStore } from '@/stores/Summary';
+import { useAutoScroll } from '@/hooks/useAutoScroll';
 
-interface SummaryProps {
-    pageTitle?: string;
-    content?: string;
-}
-
-export const Summary = ({ pageTitle = '', content = '' }: SummaryProps) => {
+export const Summary = () => {
+    const { content, prompt } = useSummaryStore();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [, setChatHistory] = useState<Array<{ role: string; content: string }>>([]);
-    const [settings, setSettings] = useState<any>(null);
-    const formattedSummaryRef = useRef<HTMLDivElement>(null);
+    const [settings, setSettings] = useState<AISettings | null>(null);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [streamingMessage, setStreamingMessage] = useState<string>('');
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
+    const initializationRef = useRef(false);
+    const messagesRef = useAutoScroll([messages, streamingMessage]);
 
-    useEffect(() => {
-        const initializeSummary = async () => {
-            const settings = await api.getAiSettings();
-            setSettings(settings);
-
-            try {
-                const systemPrompt = await getDefaultPrompt();
-
-                // Initialize conversation history
-                setChatHistory([
-                    { role: 'system', content: systemPrompt.content },
-                    { role: 'user', content: `${pageTitle}\n\n${content}` }
-                ]);
-
-                // Add initial message to the UI
-                if (formattedSummaryRef.current) {
-                    formattedSummaryRef.current.innerHTML = `
-                        <div class="message user-message">
-                            <div>
-                                ${markdownToHtml(`${systemPrompt.content}\n\n${content}`)}
-                            </div>
-                        </div>
-                    `;
-                }
-
-                // Start streaming AI response
-                setIsLoading(true);
-                const response = await handleStreamingAIResponse(
-                    settings,
-                    content,
-                    formattedSummaryRef.current
-                );
-
-                // Update chat history with response
-                setChatHistory(prev => [
-                    ...prev,
-                    { role: 'user', content },
-                    { role: 'assistant', content: response }
-                ]);
-
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'An error occurred');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        initializeSummary();
-    }, [ ]);
-
-    const handleSendMessage = async () => {
-        if (!chatInputRef.current?.value.trim()) return;
-
-        const message = chatInputRef.current.value;
-        chatInputRef.current.value = '';
+    const handleAIInteraction = async (message: string, isInitial = false) => {
+        if (!settings) {
+            console.error('Settings not available');
+            return;
+        }
 
         try {
             setIsLoading(true);
+            setError(null);
 
-            // Add user message to chat
-            if (formattedSummaryRef.current) {
-                formattedSummaryRef.current.innerHTML += `
-                    <div class="message user-message">
-                        <div>${markdownToHtml(message)}</div>
-                    </div>
-                `;
+            // Add user message immediately
+            if (isInitial) {
+                setMessages([{ role: 'user', content: message }]);
+            } else {
+                setMessages(prev => [...prev, { role: 'user', content: message }]);
             }
 
-            // Get AI response
-            const response = await handleStreamingAIResponse(
+            // Create update handler for streaming response
+            const handleUpdate = (streamContent: string) => {
+                setStreamingMessage(streamContent);
+            };
+
+            // Get streaming response
+            const response = await handleStreamingResponse(
                 settings,
                 message,
-                formattedSummaryRef.current
+                handleUpdate
             );
 
-            // Update chat history
-            setChatHistory(prev => [
-                ...prev,
-                { role: 'user', content: message },
-                { role: 'assistant', content: response }
-            ]);
+            // Add completed response to messages
+            setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+            setStreamingMessage(''); // Clear streaming message
 
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+        } catch (error) {
+            setError('error');
         } finally {
             setIsLoading(false);
         }
     };
 
-    if (!settings) return null;
+    // Initialize settings first
+    useEffect(() => {
+        const initializeSettings = async () => {
+            try {
+                const aiSettings = await api.getAiSettings();
+                setSettings(aiSettings);
+            } catch (error) {
+                setError('Failed to initialize settings');
+            }
+        };
+
+        initializeSettings();
+    }, []);
+
+    // Initialize the summary after settings are available
+    useEffect(() => {
+        const initializeSummary = async () => {
+            if (!settings || initializationRef.current) return;
+            initializationRef.current = true;
+
+            try {
+                const initialMessage = `${prompt}\n\n${content}`;
+                await handleAIInteraction(initialMessage, true);
+            } catch (error) {
+                setError('error');
+            }
+        };
+
+        initializeSummary();
+    }, [settings, content]);
+
+    // Handle sending new messages
+    const handleSendMessage = async () => {
+        if (!chatInputRef.current?.value.trim()) {
+            return;
+        }
+
+        const message = chatInputRef.current.value;
+        chatInputRef.current.value = '';
+
+        await handleAIInteraction(message);
+    };
+
+    if (!settings) {
+        return (
+            <div className="summary-content">
+                <div className="loading-container">
+                    <div className="neon-loader">
+                        {Array.from({ length: 5 }).map((_, index) => (
+                            <div key={index} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="summary-content">
@@ -115,8 +123,12 @@ export const Summary = ({ pageTitle = '', content = '' }: SummaryProps) => {
             </div>
             <div className="main-content">
                 <div id="chat-container" className="chat-container" role="log" aria-live="polite">
-                    <div id="chat-messages" className="chat-messages">
-                        <div ref={formattedSummaryRef} id="formatted-summary" className="markdown-body"></div>
+                    <div
+                        ref={messagesRef}
+                        className="chat-messages"
+                    >
+                        <MessageList messages={messages} />
+                        {streamingMessage && <StreamingMessage content={streamingMessage} />}
                     </div>
 
                     {isLoading && (
@@ -145,7 +157,8 @@ export const Summary = ({ pageTitle = '', content = '' }: SummaryProps) => {
                             ref={chatInputRef}
                             id="chat-input"
                             rows={3}
-                            placeholder="Ask a question about the content..." />
+                            placeholder="Ask a question about the content..."
+                        />
                         <div className="token-display"></div>
                         <div className="button-group">
                             <Link href="/"><button className="btn">← Back</button></Link>
@@ -153,7 +166,8 @@ export const Summary = ({ pageTitle = '', content = '' }: SummaryProps) => {
                                 id="send-message"
                                 className="btn"
                                 onClick={handleSendMessage}
-                                disabled={isLoading}>
+                                disabled={isLoading}
+                            >
                                 Send
                             </button>
                         </div>
