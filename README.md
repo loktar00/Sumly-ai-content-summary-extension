@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.svg" alt="Sumly Logo" width="200"/>
+  <img src="public/logo.svg" alt="Sumly Logo" width="200"/>
   <h1>Sumly</h1>
   <p><em>Your Content, Simplified</em></p>
 </div>
