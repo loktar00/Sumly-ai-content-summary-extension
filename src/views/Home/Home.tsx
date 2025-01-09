@@ -1,38 +1,19 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { PromptSelector } from "./PromptSelector";
-import { getDefaultPrompt } from "@/utils/prompts";
 import { useSummaryStore } from "@/stores/Summary";
+import { getCurrentUrl, getVideoTitle } from "@/utils/url";
 import { fetchWebpage, getCurrentVideoId, fetchYouTubeTranscript } from "@/utils/content";
 
 export const Home = () =>  {
     const [selectedPromptContent, setSelectedPromptContent] = useState<string>('');
-    const [, setPageTitle] = useState<string>('');
     const [, setLocation] = useLocation();
     const { setContent, setPrompt } = useSummaryStore();
     const transcriptAreaRef = useRef<HTMLTextAreaElement>(null);
 
-    useEffect(() => {
-        const loadDefaultPrompt = async () => {
-            const defaultPrompt = await getDefaultPrompt();
-            setSelectedPromptContent(defaultPrompt.content);
-            setPrompt(defaultPrompt.content);
-        };
-
-        loadDefaultPrompt();
-    }, []);
-
     const handlePromptChange = (content: string) => {
         setSelectedPromptContent(content);
         setPrompt(content);
-    };
-
-    const handleSummarize = () => {
-        const userContent = transcriptAreaRef.current?.value || '';
-        setContent(userContent);
-
-        setPageTitle('Current Page');
-        setLocation('/summary');
     };
 
     const handleFetchWebpage = async () => {
@@ -67,6 +48,30 @@ export const Home = () =>  {
             }
         }
     }
+
+    const handleSummarize = async () => {
+        let userContent = transcriptAreaRef.current?.value.trim();
+
+        // Check if we're on YouTube
+        const currentUrl = await getCurrentUrl();
+        const isYouTube = currentUrl?.includes('youtube.com/watch');
+
+        if (!userContent) {
+            if (isYouTube) {
+                await handleFetchTranscript();
+            } else {
+                await handleFetchWebpage();
+            }
+
+            userContent = transcriptAreaRef.current?.value;
+        }
+
+        const pageTitle = await getVideoTitle() || document.title || "Content";
+
+
+        setContent(`${pageTitle}\n${userContent}`);
+        setLocation('/summary');
+    };
 
     const handleCopyToClipboard = async () => {
         if (transcriptAreaRef.current) {

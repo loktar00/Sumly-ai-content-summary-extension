@@ -1,4 +1,3 @@
-import { CONSTANTS } from "@/constants";
 import { storage } from "./storage";
 
 export type Prompt = {
@@ -13,16 +12,19 @@ interface StorageData {
     savedPrompts?: Record<string, {
         content: string;
         isDefault: boolean;
+        id: string;
+        name: string;
+        pattern: string;
     }>;
 }
 
 // Save a prompt
-export async function savePrompt(pattern: string, prompt: string, makeDefault = false) {
+export async function savePrompt(prompt: Prompt) {
     const result = await storage.sync.get('savedPrompts') as StorageData;
     const savedPrompts = result.savedPrompts || {};
 
     // If making this prompt default, remove default flag from others
-    if (makeDefault) {
+    if (prompt.isDefault) {
         Object.keys(savedPrompts).forEach(key => {
             if (savedPrompts[key].isDefault) {
                 savedPrompts[key] = {
@@ -34,10 +36,13 @@ export async function savePrompt(pattern: string, prompt: string, makeDefault = 
     }
 
     // Clean pattern and save prompt
-    const cleanPattern = pattern.replace(/^www\./, '');
+    const cleanPattern = prompt.pattern.replace(/^www\./, '');
     savedPrompts[cleanPattern] = {
-        content: prompt,
-        isDefault: makeDefault
+        id: prompt.id,
+        name: prompt.name,
+        content: prompt.content,
+        pattern: cleanPattern,
+        isDefault: prompt.isDefault
     };
 
     await storage.sync.set({ savedPrompts });
@@ -57,19 +62,6 @@ export async function getPrompts(): Promise<Prompt[]> {
         isDefault: prompt.isDefault
     }));
 
-    // Check if we have a default prompt
-    const hasDefault = prompts.some(prompt => prompt.isDefault) || prompts.length;
-
-    // If no default exists, add the system default
-    if (!hasDefault) {
-        prompts.unshift({
-            id: 'default',
-            name: 'Default System Prompt',
-            content: CONSTANTS.API.DEFAULT_SYSTEM_PROMPT,
-            pattern: '',
-            isDefault: true
-        });
-    }
 
     return prompts;
 }

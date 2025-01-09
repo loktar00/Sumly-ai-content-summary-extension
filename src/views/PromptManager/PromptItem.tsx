@@ -1,14 +1,27 @@
 import { Prompt } from "@/utils/prompts";
+import { usePromptManagerStore } from "@/stores/SavedPrompts";
 
-export const PromptItem = ({ pattern, content, isDefault }: Prompt) => {
+type PromptItemProps = Prompt & { onEdit: (pattern: string) => void };
+
+export const PromptItem = ({ pattern, content, isDefault, onEdit }: PromptItemProps) => {
+    const { deletePrompt, setDefaultPrompt } = usePromptManagerStore();
+
+    const handleDelete = () => {
+        deletePrompt(pattern);
+    };
+
+    const handleSetDefault = () => {
+        setDefaultPrompt(pattern);
+    };
+
     return (
         <div className="prompt-item">
             <div className="prompt-pattern" title={pattern}>{pattern}</div>
             <div className="prompt-content">{content}</div>
             <div className="prompt-actions">
-                <button className="btn" data-action="edit" data-pattern={pattern}>Edit</button>
-                <button className="btn danger-btn" data-action="delete" data-pattern={pattern}>Delete</button>
-                <button className="btn default-btn{{defaultClass}}" data-action="default" data-pattern={pattern}>
+                <button className="btn" onClick={() => onEdit(pattern)}>Edit</button>
+                <button className="btn danger-btn" onClick={handleDelete}>Delete</button>
+                <button className="btn default-btn{{defaultClass}}" onClick={handleSetDefault}>
                     {isDefault ? 'Default' : 'Set as Default'}
                 </button>
             </div>
