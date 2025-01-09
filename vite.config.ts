@@ -9,41 +9,41 @@ const __dirname = path.dirname(__filename)
 
 // Custom plugin to copy extension files
 const copyExtensionFiles = () => {
-  return {
-    name: 'copy-extension-files',
-    closeBundle: async () => {
-      // Copy files from public directory
-      if (fs.existsSync('public')) {
-        await fs.copy('public', 'dist')
-      }
+    return {
+        name: 'copy-extension-files',
+        closeBundle: async () => {
+            // Copy files from public directory
+            if (fs.existsSync('public')) {
+                await fs.copy('public', 'dist')
+            }
+        }
     }
-  }
 }
 
 export default defineConfig({
-  plugins: [
-    react(),
-    copyExtensionFiles()
-  ],
-  root: 'src',
-  build: {
-    outDir: '../dist',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'src/index.html')
-      },
-      output: {
-        entryFileNames: '[name].js',
-        chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]'
-      }
+    plugins: [
+        react(),
+        copyExtensionFiles()
+    ],
+    root: 'src',
+    build: {
+        outDir: '../dist',
+        emptyOutDir: true,
+        rollupOptions: {
+            input: {
+                main: path.resolve(__dirname, 'src/index.html')
+            },
+            output: {
+                entryFileNames: '[name].js',
+                chunkFileNames: '[name].js',
+                assetFileNames: '[name].[ext]'
+            }
+        }
+    },
+    server: {
+        open: true
+    },
+    resolve: {
+        alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }]
     }
-  },
-  server: {
-    open: true
-  },
-  resolve: {
-    alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }]
-  }
 })

@@ -78,7 +78,7 @@ export const Home = () =>  {
             try {
                 await navigator.clipboard.writeText(transcriptAreaRef.current.value);
                 alert("Transcript copied to clipboard!");
-        } catch (error) {
+            } catch (error) {
                 alert(`Failed to copy text to clipboard. ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
         }

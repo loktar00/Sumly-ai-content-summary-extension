@@ -16,7 +16,7 @@ export const Summary = () => {
     const [error, setError] = useState<string | null>(null);
     const [settings, setSettings] = useState<AISettings | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
-    const [tokenCount, setTokenCount] = useState<Number>(0);
+    const [tokenCount, setTokenCount] = useState<number>(0);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
     const initializationRef = useRef(false);
