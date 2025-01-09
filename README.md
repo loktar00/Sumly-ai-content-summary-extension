@@ -51,7 +51,9 @@ A Chrome extension that helps analyze and discuss content from any webpage or Yo
 1. Clone this repository
 2. Open Chrome and navigate to `chrome://extensions/`
 3. Enable "Developer mode" in the top right
-4. Click "Load unpacked" and select the `extension` folder from this repository
+4. Install dependencies: `npm install`
+5. Build the extension: `npm run build`
+6. Click "Load unpacked" and select the `dist` folder from this repository
 
 ## Configuration
 

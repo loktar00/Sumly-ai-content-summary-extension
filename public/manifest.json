@@ -27,7 +27,7 @@
         "default_title": "Sumly"
     },
     "side_panel": {
-        "default_path": "side-panel.html"
+        "default_path": "index.html"
     },
     "commands": {
         "_execute_action": {
@@ -38,11 +38,7 @@
     },
     "web_accessible_resources": [{
         "resources": [
-            "options.html",
-            "summary.html",
-            "side-panel.html",
-            "app.js",
-            "side-panel-init.js"
+            "index.html"
         ],
         "matches": ["<all_urls>"]
     }],

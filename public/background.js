@@ -6,7 +6,7 @@ chrome.runtime.onInstalled.addListener(async () => {
         await chrome.action.setPopup({ popup: '' });
         await chrome.sidePanel.setOptions({
             enabled: true,
-            path: 'side-panel.html'
+            path: 'index.html'
         });
     } catch (error) {
         console.error('[Background] Setup error:', error);
@@ -32,7 +32,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         try {
             await chrome.sidePanel.setOptions({
                 enabled: true,
-                path: 'side-panel.html'
+                path: 'index.html'
             });
         } catch (error) {
             console.error('[Background] Error enabling side panel:', error);
