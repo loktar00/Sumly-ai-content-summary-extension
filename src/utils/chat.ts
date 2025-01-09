@@ -205,7 +205,6 @@ export function calculateConversationTokens(history: any[]) {
 }
 
 export function updateTokenCount(conversationHistory: any[]) {
-    const totalTokens = calculateConversationTokens(conversationHistory);
-    console.log('Total tokens:', totalTokens);
-    return totalTokens.toLocaleString();
+    const totalTokens = parseInt(calculateConversationTokens(conversationHistory), 10);
+    return totalTokens;
 }

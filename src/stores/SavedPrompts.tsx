@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Prompt, getPrompts, savePrompt } from '@/utils/prompts';
 import { storage } from '@/utils/storage';
+import { CONSTANTS } from '@/constants';
 
 interface PromptManagerState {
     prompts: Prompt[];
@@ -20,7 +21,22 @@ export const usePromptManagerStore = create<PromptManagerState>((set) => ({
     initializePrompts: async () => {
         try {
             set({ isLoading: true, error: null });
-            const savedPrompts = await getPrompts();
+            let savedPrompts = await getPrompts();
+
+            // If no prompts exist, create the default one
+            if (savedPrompts.length === 0) {
+                const defaultPrompt: Prompt = {
+                    id: 'default',
+                    name: 'Default System Prompt',
+                    content: CONSTANTS.DEFAULT_SYSTEM_PROMPT,
+                    pattern: 'Default',
+                    isDefault: true
+                };
+
+                await savePrompt(defaultPrompt);
+                savedPrompts = await getPrompts();
+            }
+
             set({ prompts: savedPrompts, isLoading: false });
         } catch (error) {
             set({

@@ -20,6 +20,8 @@ export const PromptManager = () => {
         };
 
         addPrompt(newPrompt);
+        setPattern('');
+        setPrompt('');
     };
 
     const handleUseCurrentUrl = async () => {

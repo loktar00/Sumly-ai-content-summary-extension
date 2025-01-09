@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, KeyboardEvent } from 'react';
 import { Link } from 'wouter';
-import { handleStreamingResponse, updateTokenCount } from '@/utils/chat';
+import { handleStreamingResponse, updateTokenCount, estimateTokens } from '@/utils/chat';
 import { api } from '@/api/api';
 import { MessageList } from './MessageList';
 import { StreamingMessage } from './StreamingMessage';
@@ -8,6 +8,7 @@ import { Message, AISettings } from './types';
 import { useSummaryStore } from '@/stores/Summary';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { Loader } from '@/components/Loader';
+import { TokenDisplay } from './TokenDisplay';
 
 export const Summary = () => {
     const { content, prompt } = useSummaryStore();
@@ -15,7 +16,7 @@ export const Summary = () => {
     const [error, setError] = useState<string | null>(null);
     const [settings, setSettings] = useState<AISettings | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
-    const [tokenCount, setTokenCount] = useState<string>('');
+    const [tokenCount, setTokenCount] = useState<Number>(0);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
     const initializationRef = useRef(false);
@@ -40,6 +41,7 @@ export const Summary = () => {
                 newMessages = [...messages, { role: 'user', content: message }];
                 setMessages(newMessages);
             }
+
             setTokenCount(updateTokenCount(newMessages));
 
             // Create update handler for streaming response
@@ -87,11 +89,34 @@ export const Summary = () => {
     // Initialize the summary after settings are available
     useEffect(() => {
         const initializeSummary = async () => {
-            if (!settings || initializationRef.current) return;
+            if (!settings || initializationRef.current) {
+                return;
+            }
+
             initializationRef.current = true;
 
             try {
-                const initialMessage = `${prompt}\n\n${content}`;
+                let initialMessage = `${prompt}\n\n${content}`;
+
+                // Only process chunks if enabled and content is too large
+                if (true) {
+                    const estimatedTokens = estimateTokens(content);
+                    const systemPromptTokens = estimateTokens(prompt);
+                    const messageFormatTokens = 8;
+                    const safetyMargin = 50;
+                    const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
+
+                    if (estimatedTokens + totalOverhead > settings.numCtx) {
+                        initialMessage = await chunkAndSummarize(
+                            content,
+                            settings.numCtx,
+                            settings,
+                            prompt
+                        );
+                    }
+                }
+
+
                 await handleAIInteraction(initialMessage, true);
             } catch (error) {
                 setError('error');
@@ -137,7 +162,7 @@ export const Summary = () => {
                     {isLoading && (
                         <div id="chat-loading" className="chat-loading">
                             <Loader />
-                            <div className="token-display">{tokenCount} / {settings?.numCtx}</div>
+                            <TokenDisplay tokenCount={Number(tokenCount)} max={Number(settings?.numCtx)} />
                             <div className="button-group loading-controls">
                                 <Link href="/"><button className="btn">← Back</button></Link>
                                 <button className="btn danger-btn">Stop</button>
@@ -158,7 +183,7 @@ export const Summary = () => {
                             rows={3}
                             onKeyDown={handleKeyDown}
                             placeholder="Ask a question about the content..." />
-                        <div className="token-display">{tokenCount} / {settings?.numCtx}</div>
+                        <TokenDisplay tokenCount={Number(tokenCount)} max={Number(settings?.numCtx)} />
                         <div className="button-group">
                             <Link href="/"><button className="btn">← Back</button></Link>
                             <button

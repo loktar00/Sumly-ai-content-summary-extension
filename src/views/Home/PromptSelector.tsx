@@ -11,7 +11,6 @@ export const PromptSelector = ({ onSelect }: { onSelect: (content: string) => vo
 
     const handlePromptChange = (e: ChangeEvent<HTMLSelectElement>) => {
         const foundPrompt = prompts.find(prompt => prompt.pattern === e.target.value);
-        console.log(prompts, selectedPrompt);
         setSelectedPrompt(foundPrompt || null);
 
         if (foundPrompt) {
@@ -21,6 +20,8 @@ export const PromptSelector = ({ onSelect }: { onSelect: (content: string) => vo
 
     useEffect(() => {
         const loadBestMatch = async () => {
+            if (prompts.length === 0) return;
+
             // Find best matching pattern and select it in dropdown
             const bestMatch = await findBestMatchForUrl(
                 prompts.map(prompt => prompt.pattern)
@@ -29,7 +30,8 @@ export const PromptSelector = ({ onSelect }: { onSelect: (content: string) => vo
             if (bestMatch) {
                 handlePromptChange({ target: { value: bestMatch } } as ChangeEvent<HTMLSelectElement>);
             } else {
-                handlePromptChange({ target: { value: 'default' } } as ChangeEvent<HTMLSelectElement>);
+                // Select first prompt if no match found
+                handlePromptChange({ target: { value: prompts[0].pattern } } as ChangeEvent<HTMLSelectElement>);
             }
         };
 
@@ -46,9 +48,9 @@ export const PromptSelector = ({ onSelect }: { onSelect: (content: string) => vo
 
     return (
         <div className="prompt-selector">
-            <select id="prompt-selector" defaultValue="default" onChange={handlePromptChange} value={selectedPrompt?.pattern}>
+            <select id="prompt-selector" onChange={handlePromptChange} value={selectedPrompt?.pattern}>
                 {prompts.map((prompt) =>
-                    <option key={prompt.id} value={prompt.isDefault ? 'default' : prompt.pattern}>
+                    <option key={prompt.id} value={prompt.pattern}>
                         {prompt.name}
                     </option>
                 )}

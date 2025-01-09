@@ -1,4 +1,8 @@
 export async function getCurrentUrl() {
+    if (!chrome.tabs?.query) {
+        return null;
+    }
+
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
     if (!tabs[0]?.url) {
