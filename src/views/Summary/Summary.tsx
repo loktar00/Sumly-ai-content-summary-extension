@@ -20,7 +20,7 @@ export const Summary = () => {
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
     const initializationRef = useRef(false);
-    const messagesRef = useAutoScroll([messages, streamingMessage]);
+    const { ref: messagesRef, scrollToBottom } = useAutoScroll([messages, streamingMessage]);
     const [chunkProgress, setChunkProgress] = useState<{ current: number; total: number; message: string } | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -28,12 +28,17 @@ export const Summary = () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();
             setIsLoading(false);
+            const stoppedByUser = `${streamingMessage} \n\n *Output stopped by user*`;
             setStreamingMessage('');
+
+            // Add streaming message to messages
+            setMessages(prev => [...prev, { role: 'assistant', content: stoppedByUser }]);
+            scrollToBottom();
         }
     };
 
     const handleBack = () => {
-        handleStop(); // Stop any ongoing requests before navigating
+        handleStop();
     };
 
     const handleAIInteraction = async (message: string, isInitial = false) => {
@@ -57,6 +62,8 @@ export const Summary = () => {
                 setMessages(newMessages);
             }
 
+            setTimeout(() => scrollToBottom(), 100); // Force scroll after adding user message
+
             setTokenCount(updateTokenCount(newMessages));
 
             // Create update handler for streaming response
@@ -78,9 +85,10 @@ export const Summary = () => {
             setMessages(prev => {
                 const updatedMessages: Message[] = [...prev, { role: 'assistant', content: response }];
                 setTokenCount(updateTokenCount(updatedMessages));
+                setTimeout(() => scrollToBottom(), 100); // Force scroll after AI response with slight delay
                 return updatedMessages;
             });
-            setStreamingMessage(''); // Clear streaming message
+            setStreamingMessage('');
 
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') {
@@ -199,6 +207,17 @@ export const Summary = () => {
                         {streamingMessage && <StreamingMessage content={streamingMessage} />}
                     </div>
 
+                    {chunkProgress && (
+                        <div className="chunk-progress">
+                            <div className="message system-message">
+                                <div>{chunkProgress.message}</div>
+                                {chunkProgress.total > 0 && (
+                                    <div>Progress: {chunkProgress.current} / {chunkProgress.total}</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {isLoading && (
                         <div id="chat-loading" className="chat-loading">
                             <Loader />
@@ -237,17 +256,6 @@ export const Summary = () => {
                     </div>
                 </div>
             </div>
-
-            {chunkProgress && (
-                <div className="chunk-progress">
-                    <div className="message system-message">
-                        <div>{chunkProgress.message}</div>
-                        {chunkProgress.total > 0 && (
-                            <div>Progress: {chunkProgress.current} / {chunkProgress.total}</div>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
