@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, KeyboardEvent } from 'react';
 import { Link } from 'wouter';
-import { handleStreamingResponse, updateTokenCount, estimateTokens } from '@/utils/chat';
+import { handleStreamingResponse, updateTokenCount, estimateTokens, chunkAndSummarize } from '@/utils/chat';
 import { api } from '@/api/api';
 import { MessageList } from './MessageList';
 import { StreamingMessage } from './StreamingMessage';
@@ -11,7 +11,7 @@ import { Loader } from '@/components/Loader';
 import { TokenDisplay } from './TokenDisplay';
 
 export const Summary = () => {
-    const { content, prompt } = useSummaryStore();
+    const { content, prompt, enableChunking } = useSummaryStore();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [settings, setSettings] = useState<AISettings | null>(null);
@@ -21,6 +21,20 @@ export const Summary = () => {
     const chatInputRef = useRef<HTMLTextAreaElement>(null);
     const initializationRef = useRef(false);
     const messagesRef = useAutoScroll([messages, streamingMessage]);
+    const [chunkProgress, setChunkProgress] = useState<{ current: number; total: number; message: string } | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    const handleStop = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            setIsLoading(false);
+            setStreamingMessage('');
+        }
+    };
+
+    const handleBack = () => {
+        handleStop(); // Stop any ongoing requests before navigating
+    };
 
     const handleAIInteraction = async (message: string, isInitial = false) => {
         if (!settings) {
@@ -31,6 +45,7 @@ export const Summary = () => {
         try {
             setIsLoading(true);
             setError(null);
+            abortControllerRef.current = new AbortController();
 
             // Add user message immediately and update token count
             let newMessages: Message[];
@@ -54,7 +69,9 @@ export const Summary = () => {
                 settings,
                 message,
                 handleUpdate,
-                newMessages
+                newMessages,
+                null,
+                abortControllerRef.current
             );
 
             // Add completed response to messages and update token count
@@ -66,9 +83,14 @@ export const Summary = () => {
             setStreamingMessage(''); // Clear streaming message
 
         } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                // Handle abort gracefully
+                return;
+            }
             setError('error');
         } finally {
             setIsLoading(false);
+            abortControllerRef.current = null;
         }
     };
 
@@ -94,32 +116,50 @@ export const Summary = () => {
             }
 
             initializationRef.current = true;
+            abortControllerRef.current = new AbortController();
 
             try {
                 let initialMessage = `${prompt}\n\n${content}`;
 
-                // Only process chunks if enabled and content is too large
-                if (true) {
-                    const estimatedTokens = estimateTokens(content);
-                    const systemPromptTokens = estimateTokens(prompt);
-                    const messageFormatTokens = 8;
-                    const safetyMargin = 50;
-                    const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
+                // Only process chunks if content is too large
+                const estimatedTokens = estimateTokens(content);
+                const systemPromptTokens = estimateTokens(prompt);
+                const messageFormatTokens = 8;
+                const safetyMargin = 50;
+                const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
 
-                    if (estimatedTokens + totalOverhead > settings.numCtx) {
-                        initialMessage = await chunkAndSummarize(
-                            content,
-                            settings.numCtx,
-                            settings,
-                            prompt
-                        );
-                    }
+                if (estimatedTokens + totalOverhead > settings.numCtx && enableChunking) {
+                    setTokenCount(estimatedTokens + totalOverhead);
+                    setChunkProgress({ current: 0, total: 0, message: 'Analyzing content size...' });
+
+                    initialMessage = await chunkAndSummarize(
+                        content,
+                        settings.numCtx,
+                        settings,
+                        prompt,
+                        (progress) => {
+                            setChunkProgress({
+                                current: progress.currentChunk,
+                                total: progress.totalChunks,
+                                message: progress.message
+                            });
+                        },
+                        (streamContent) => {
+                            setStreamingMessage(streamContent);
+                        },
+                        abortControllerRef.current
+                    );
                 }
 
-
-                await handleAIInteraction(initialMessage, true);
-            } catch (error) {
+                await handleAIInteraction(`${prompt}\n\n${initialMessage}`, true);
+                setChunkProgress(null);
+            } catch (error: unknown) {
+                if (error instanceof Error && error.name === 'AbortError') {
+                    return;
+                }
                 setError('error');
+            } finally {
+                abortControllerRef.current = null;
             }
         };
 
@@ -164,8 +204,8 @@ export const Summary = () => {
                             <Loader />
                             <TokenDisplay tokenCount={Number(tokenCount)} max={Number(settings?.numCtx)} />
                             <div className="button-group loading-controls">
-                                <Link href="/"><button className="btn">← Back</button></Link>
-                                <button className="btn danger-btn">Stop</button>
+                                <Link href="/" onClick={handleBack}><button className="btn">← Back</button></Link>
+                                <button className="btn danger-btn" onClick={handleStop}>Stop</button>
                             </div>
                         </div>
                     )}
@@ -197,6 +237,17 @@ export const Summary = () => {
                     </div>
                 </div>
             </div>
+
+            {chunkProgress && (
+                <div className="chunk-progress">
+                    <div className="message system-message">
+                        <div>{chunkProgress.message}</div>
+                        {chunkProgress.total > 0 && (
+                            <div>Progress: {chunkProgress.current} / {chunkProgress.total}</div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

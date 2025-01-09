@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, ChangeEvent } from "react";
 import { useLocation } from "wouter";
 import { PromptSelector } from "./PromptSelector";
 import { useSummaryStore } from "@/stores/Summary";
@@ -8,7 +8,7 @@ import { fetchWebpage, getCurrentVideoId, fetchYouTubeTranscript } from "@/utils
 export const Home = () =>  {
     const [selectedPromptContent, setSelectedPromptContent] = useState<string>('');
     const [, setLocation] = useLocation();
-    const { setContent, setPrompt } = useSummaryStore();
+    const { setContent, setPrompt, enableChunking, setEnableChunking } = useSummaryStore();
     const transcriptAreaRef = useRef<HTMLTextAreaElement>(null);
 
     const handlePromptChange = (content: string) => {
@@ -84,6 +84,10 @@ export const Home = () =>  {
         }
     }
 
+    const handleChunkSettingChange = (e: ChangeEvent<HTMLInputElement>) => {
+        setEnableChunking(e.target.checked);
+    };
+
     return (
         <>
             <PromptSelector onSelect={handlePromptChange}/>
@@ -104,7 +108,7 @@ export const Home = () =>  {
                 </button>
                 <div className="chunk-control">
                     <label>
-                        <input type="checkbox" id="enable-chunking" defaultChecked />
+                        <input type="checkbox" id="enable-chunking" defaultChecked={enableChunking} onChange={handleChunkSettingChange} />
                         <span>Auto-chunk large content</span>
                     </label>
                 </div>

@@ -1,3 +1,5 @@
+import { CONSTANTS } from '@/constants';
+
 // Simple markdown parser
 export const markdownToHtml = (markdown: string) => {
     return markdown
@@ -87,11 +89,12 @@ export async function handleStreamingResponse(
     prompt: string,
     onUpdate: (content: string) => void,
     conversationHistory: { role: string; content: string }[] = [],
-    systemPromptOverride = null
+    systemPromptOverride: string | null = null,
+    abortController?: AbortController
 ) {
     try {
         const endpoint = `${settings.url}/api/chat`;
-        let abortController = new AbortController();
+        const controller = abortController || new AbortController();
 
         // Include conversation history in messages
         const messages = [
@@ -114,7 +117,7 @@ export async function handleStreamingResponse(
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
-            signal: abortController.signal
+            signal: controller.signal
         });
 
         if (!response.ok) {
@@ -207,4 +210,107 @@ export function calculateConversationTokens(history: any[]) {
 export function updateTokenCount(conversationHistory: any[]) {
     const totalTokens = parseInt(calculateConversationTokens(conversationHistory), 10);
     return totalTokens;
+}
+
+interface ChunkProgress {
+    currentChunk: number;
+    totalChunks: number;
+    message: string;
+}
+
+export async function chunkAndSummarize(
+    content: string,
+    contextSize: number,
+    settings: { url: string; model: string; numCtx: number },
+    systemPrompt: string,
+    onProgressUpdate?: (progress: ChunkProgress) => void,
+    onStreamingUpdate?: (content: string) => void,
+    abortController?: AbortController
+) {
+    const CHUNK_SUMMARY_PROMPT = "Summarize the following content while retaining all important information:";
+
+    // Calculate available tokens
+    const systemPromptTokens = estimateTokens(systemPrompt);
+    const messageFormatTokens = 8;  // 4 tokens each for system and user message
+    const safetyMargin = 50;
+
+    const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
+    const availableTokens = contextSize - totalOverhead;
+    const estimatedTokens = estimateTokens(content);
+
+    // If content fits in context, return as is
+    if (estimatedTokens <= availableTokens) {
+        return content;
+    }
+
+    // Calculate optimal chunk size
+    const summaryPromptTokens = estimateTokens(CHUNK_SUMMARY_PROMPT);
+    const chunkSize = Math.floor((availableTokens - summaryPromptTokens) * 0.9); // 90% of available space
+
+    // Split content into chunks
+    const chunks: string[] = [];
+    let currentChunk = '';
+    let currentTokens = 0;
+
+    const sentences = content.split(/(?<=[.!?])\s+/);
+    for (const sentence of sentences) {
+        const sentenceTokens = estimateTokens(sentence);
+
+        if (currentTokens + sentenceTokens > chunkSize) {
+            chunks.push(currentChunk);
+            currentChunk = sentence;
+            currentTokens = sentenceTokens;
+        } else {
+            currentChunk += (currentChunk ? ' ' : '') + sentence;
+            currentTokens += sentenceTokens;
+        }
+    }
+
+    if (currentChunk) {
+        chunks.push(currentChunk);
+    }
+
+    // Notify of initial status
+    if (onProgressUpdate) {
+        onProgressUpdate({
+            currentChunk: 0,
+            totalChunks: chunks.length,
+            message: `Content size (${estimatedTokens} tokens) exceeds context window (${contextSize} tokens). Breaking content into ${chunks.length} chunks for processing...`
+        });
+    }
+
+    // Summarize each chunk
+    const chunkSummaries: string[] = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+        if (onProgressUpdate) {
+            onProgressUpdate({
+                currentChunk: i + 1,
+                totalChunks: chunks.length,
+                message: `Processing chunk ${i + 1} of ${chunks.length}...`
+            });
+        }
+
+        const summary = await handleStreamingResponse(
+            settings,
+            chunks[i],
+            onStreamingUpdate || (() => {}),
+            [], // No conversation history for chunks
+            CONSTANTS.API.DEFAULT_CHUNK_SUMMARY_PROMPT,
+            abortController
+        );
+
+        chunkSummaries.push(summary);
+    }
+
+    // Notify of final processing
+    if (onProgressUpdate) {
+        onProgressUpdate({
+            currentChunk: chunks.length,
+            totalChunks: chunks.length,
+            message: 'Combining summaries for final processing...'
+        });
+    }
+
+    return chunkSummaries.join('\n\n');
 }

@@ -124,6 +124,9 @@ textarea::-webkit-scrollbar-thumb:hover,
   background: var(--button-color);
 }
 
+a {
+  text-decoration: none;
+}
 
 /* Layout Components */
 .main-content {
@@ -136,6 +139,10 @@ textarea::-webkit-scrollbar-thumb:hover,
   align-items: center;
   gap: var(--spacing-lg);
   padding: var(--spacing-lg);
+}
+
+.summary-content {
+  width: 100%;
 }
 
 /* Header Styles */
