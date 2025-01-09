@@ -19,6 +19,11 @@ export const markdownToHtml = (markdown: string) => {
         .replace(/^(\*.+)\s*\n([^*])/gm, '$1\n</ul>\n$2')
         .replace(/^\*(.+)/gm, '<li>$1</li>')
 
+        // Headings
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+
         // Ordered Lists
         .replace(/^\s*\n\d\./gm, '<ol>\n1.')
         .replace(/^(\d\..+)\s*\n([^\d.])/gm, '$1\n</ol>\n$2')

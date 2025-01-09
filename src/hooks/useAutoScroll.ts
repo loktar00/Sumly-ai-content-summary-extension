@@ -1,9 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, RefObject } from 'react';
 
 const SCROLL_TOLERANCE = 100;
 
-export const useAutoScroll = (deps: any[] = []) => {
+interface AutoScrollResult {
+    ref: RefObject<HTMLDivElement>;
+    scrollToBottom: () => void;
+}
+
+export const useAutoScroll = (deps: unknown[] = []): AutoScrollResult => {
     const messagesRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        if (messagesRef.current) {
+            messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+        }
+    };
 
     useEffect(() => {
         const element = messagesRef.current;
@@ -15,9 +26,9 @@ export const useAutoScroll = (deps: any[] = []) => {
             element.scrollTop > SCROLL_TOLERANCE;
 
         if (!isUserScrolledUp) {
-            element.scrollTop = element.scrollHeight;
+            scrollToBottom();
         }
     }, deps);
 
-    return messagesRef;
+    return { ref: messagesRef, scrollToBottom };
 };
