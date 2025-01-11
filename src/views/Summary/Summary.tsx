@@ -127,7 +127,7 @@ export const Summary = () => {
             abortControllerRef.current = new AbortController();
 
             try {
-                let initialMessage = `${prompt}\n\n${content}`;
+                let initialMessage = `${content}`;
 
                 // Only process chunks if content is too large
                 const estimatedTokens = estimateTokens(content);
@@ -172,7 +172,7 @@ export const Summary = () => {
         };
 
         initializeSummary();
-    }, [settings, content]);
+    }, [settings, content, prompt]);
 
     // Handle sending new messages
     const handleSendMessage = async () => {

@@ -42,53 +42,6 @@ export const markdownToHtml = (markdown: string) => {
         })
 };
 
-// Streaming response from the server
-export async function handleStreamingAIResponse(settings: { url: string; model: string; numCtx: number }, message: string, onUpdate: (content: string) => void ): Promise<string> {
-    let fullResponse = '';
-
-    try {
-        const response = await fetch(`${settings.url}/api/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-
-            body: JSON.stringify({
-                model: settings.model,
-                messages: [{ role: 'user', content: message }],
-                stream: true
-            })
-        });
-
-        const reader = response.body?.getReader();
-        console.log('Reader:', reader);
-        if (!reader) throw new Error('Failed to get response reader');
-
-        while (true) {
-            const { done, value } = await reader.read();
-            console.log('Done:', done);
-            console.log('Value:', value);
-            if (done) break;
-
-            const chunk = new TextDecoder().decode(value);
-            const lines = chunk.split('\n').filter(Boolean);
-
-            for (const line of lines) {
-                const json = JSON.parse(line);
-                if (json.response) {
-                    fullResponse += json.response;
-                    onUpdate(markdownToHtml(fullResponse));
-                }
-            }
-        }
-
-        console.log('Full response:', fullResponse);
-        return fullResponse;
-
-    } catch (error) {
-        console.error('Error in streaming response:', error);
-        throw error;
-    }
-}
-
 export async function handleStreamingResponse(
     settings: { url: string; model: string; numCtx: number },
     prompt: string,
@@ -162,13 +115,13 @@ export async function handleStreamingResponse(
                 }
             }
         } catch (error) {
-            console.error('Error in handleStreamingAIResponse:', error);
+            console.error('Error in handleStreamingResponse:', error);
             throw error;
         }
 
         return accumulatedResponse;
     } catch (error) {
-        console.error('Error in handleStreamingAIResponse:', error);
+        console.error('Error in handleStreamingResponse:', error);
         throw error;
     }
 }
