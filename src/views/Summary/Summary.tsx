@@ -172,7 +172,7 @@ export const Summary = () => {
         };
 
         initializeSummary();
-    }, [settings, content]);
+    }, [settings, content, prompt]);
 
     // Handle sending new messages
     const handleSendMessage = async () => {

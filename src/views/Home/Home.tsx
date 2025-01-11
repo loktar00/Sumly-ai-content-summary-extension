@@ -97,7 +97,7 @@ export const Home = () =>  {
                 cols={50}
                 placeholder="System Prompt"
                 value={selectedPromptContent}
-                onChange={(e) => setSelectedPromptContent(e.target.value)}
+                onChange={(e) => handlePromptChange(e.target.value)}
             />
             <div className="summarize-controls">
                 <button
