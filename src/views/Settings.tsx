@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import { api } from '@/api/api';
 import { storage } from '@/utils/storage';
 import { CONSTANTS } from '@/constants';
-import { formatSize } from '@/utils/models';
+import { formatSize } from '@/utils/chat';
 
 export const Settings = () => {
     const [aiUrl, setAiUrl] = useState(CONSTANTS.API.DEFAULT_AI_URL);

@@ -39,6 +39,7 @@ A Chrome extension that helps analyze and discuss content from any webpage or Yo
 - 🔍 Default prompt system for consistent interactions
 - 📊 Real-time token usage monitoring
 - 🎨 New cyberpunk theme and branding
+- 🎯 Element targeting for specific content extraction
 
 ## Requirements
 
@@ -71,6 +72,8 @@ A Chrome extension that helps analyze and discuss content from any webpage or Yo
 2. To add a new prompt:
    - Enter a URL pattern (e.g., reddit.com/r/*)
    - Write your custom prompt
+   - Click "Select Element" to target specific page content (optional)
+   - The selector will be saved with your prompt for automatic targeting
    - Click Save
 3. To use current page URL:
    - Click "Get URL" to automatically fill the pattern
@@ -79,6 +82,16 @@ A Chrome extension that helps analyze and discuss content from any webpage or Yo
    - Click "Make Default" on any saved prompt
    - Default prompt will be used when no URL patterns match
 5. Edit or delete existing prompts using the action buttons
+
+### Element Targeting
+1. Select content on any webpage:
+   - Click "Select Element" in the side panel
+   - Hover over any element to highlight it
+   - Click to select and extract its content
+2. Use with saved prompts:
+   - Prompts with saved selectors automatically target specific elements
+   - Content is extracted from matching elements on matching pages
+   - Perfect for consistent analysis of similar webpage elements
 
 ### For Any Webpage
 1. Navigate to any webpage

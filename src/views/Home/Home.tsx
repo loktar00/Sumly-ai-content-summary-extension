@@ -4,15 +4,19 @@ import { PromptSelector } from "./PromptSelector";
 import { useSummaryStore } from "@/stores/Summary";
 import { getCurrentUrl, getVideoTitle } from "@/utils/url";
 import { fetchWebpage, getCurrentVideoId, fetchYouTubeTranscript } from "@/utils/content";
+import { PathSelector } from '@/components/PathSelector';
+import { cleanContent } from "@/utils/content";
 
 export const Home = () =>  {
     const [selectedPromptContent, setSelectedPromptContent] = useState<string>('');
     const [, setLocation] = useLocation();
     const { setContent, setPrompt, enableChunking, setEnableChunking } = useSummaryStore();
+    const [selectedPath, setSelectedPath] = useState<string>('');
     const transcriptAreaRef = useRef<HTMLTextAreaElement>(null);
 
-    const handlePromptChange = (content: string) => {
+    const handlePromptChange = (content: string, selector: string | undefined) => {
         setSelectedPromptContent(content);
+        setSelectedPath(selector || '');
         setPrompt(content);
     };
 
@@ -59,6 +63,8 @@ export const Home = () =>  {
         if (!userContent) {
             if (isYouTube) {
                 await handleFetchTranscript();
+            } else if (selectedPath) {
+                await handlePathSelected(selectedPath);
             } else {
                 await handleFetchWebpage();
             }
@@ -88,6 +94,30 @@ export const Home = () =>  {
         setEnableChunking(e.target.checked);
     };
 
+    const handlePathSelected = async (selector: string) => {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab.id) return;
+
+            // Get the text content using the selector
+            const [{ result }] = await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: (selector: string) => {
+                    const element = document.querySelector(selector);
+                    return element?.textContent?.trim() || '';
+                },
+                args: [selector]
+            });
+
+            if (transcriptAreaRef.current) {
+                transcriptAreaRef.current.value = cleanContent(result || '');
+                setContent(cleanContent(result || ''));
+            }
+        } catch (error) {
+            console.error('Error getting element content:', error);
+        }
+    };
+
     return (
         <>
             <PromptSelector onSelect={handlePromptChange}/>
@@ -97,14 +127,15 @@ export const Home = () =>  {
                 cols={50}
                 placeholder="System Prompt"
                 value={selectedPromptContent}
-                onChange={(e) => handlePromptChange(e.target.value)}
+                onChange={(e) => handlePromptChange(e.target.value, selectedPath)}
             />
+            <input type="text" id="use-selector" placeholder="Target element" value={selectedPath || ''} onChange={(e) => setSelectedPath(e.target.value)} />
             <div className="summarize-controls">
                 <button
                     id="summarize-transcript"
                     className="btn ai-btn"
                     onClick={handleSummarize}>
-                    Summarize Page with AI
+                    Execute Prompt
                 </button>
                 <div className="chunk-control">
                     <label>
@@ -121,9 +152,16 @@ export const Home = () =>  {
                 placeholder="Content will appear here..."
             />
             <div className="button-group source-buttons">
-                <button id="fetch-webpage" className="btn" onClick={handleFetchWebpage}>Get Page Content</button>
-                <button id="fetch-current-transcript" className="btn" onClick={handleFetchTranscript}>Get Transcript</button>
-                <button id="copy-to-clipboard" className="btn" onClick={handleCopyToClipboard}>Copy to Clipboard</button>
+                <PathSelector onPathSelected={handlePathSelected} />
+                <button id="fetch-webpage" className="btn" onClick={handleFetchWebpage}>
+                    Get Page Content
+                </button>
+                <button id="fetch-current-transcript" className="btn" onClick={handleFetchTranscript}>
+                    Get Transcript
+                </button>
+                <button id="copy-to-clipboard" className="btn" onClick={handleCopyToClipboard}>
+                    Copy to Clipboard
+                </button>
             </div>
         </>
     );

@@ -595,7 +595,7 @@ hr {
   gap: var(--spacing-lg);
 }
 
-.prompt-url-input {
+.prompt-manager-input-group {
   display: grid;
   grid-template-columns: 1fr 0.3fr;
   gap: var(--spacing-lg);
