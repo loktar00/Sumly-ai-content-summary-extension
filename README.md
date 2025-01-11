@@ -129,7 +129,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 #### Interface Improvements
 - 🌓 Light mode theme option
-- 🎯 Element targeting for specific content extraction
 - 📜 Auto-scroll webpage content integration
 - 🔄 Save transcript between screen changes
 - 🎛️ Model switching in chat summary view
@@ -137,12 +136,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 #### Core Functionality
 - 🤖 External AI provider support (OpenAI, Anthropic)
 - 📊 Enhanced webpage interaction capabilities
-- 🎯 Improved content targeting system
-- 🎯 Element targeting for specific content extraction
 
 #### Development Improvements
-- 📦 Build process implementation
-- 🔧 TypeScript migration
 - ✅ Test suite implementation
 - 🔍 Enhanced linting and code quality tools
 
