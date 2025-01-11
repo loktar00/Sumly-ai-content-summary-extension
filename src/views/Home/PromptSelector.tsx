@@ -5,7 +5,7 @@ import { usePromptManagerStore } from "@/stores/SavedPrompts";
 import { findBestMatchForUrl } from "@/utils/url";
 import { Loader } from '@/components/Loader';
 
-export const PromptSelector = ({ onSelect }: { onSelect: (content: string) => void }) => {
+export const PromptSelector = ({ onSelect }: { onSelect: (content: string, selector?: string) => void }) => {
     const { prompts, isLoading, error } = usePromptManagerStore();
     const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
 
@@ -14,7 +14,7 @@ export const PromptSelector = ({ onSelect }: { onSelect: (content: string) => vo
         setSelectedPrompt(foundPrompt || null);
 
         if (foundPrompt) {
-            onSelect(foundPrompt.content);
+            onSelect(foundPrompt.content, foundPrompt.selector);
         }
     };
 

@@ -11,10 +11,12 @@ export const Home = () =>  {
     const [selectedPromptContent, setSelectedPromptContent] = useState<string>('');
     const [, setLocation] = useLocation();
     const { setContent, setPrompt, enableChunking, setEnableChunking } = useSummaryStore();
+    const [selectedPath, setSelectedPath] = useState<string>('');
     const transcriptAreaRef = useRef<HTMLTextAreaElement>(null);
 
-    const handlePromptChange = (content: string) => {
+    const handlePromptChange = (content: string, selector: string | undefined) => {
         setSelectedPromptContent(content);
+        setSelectedPath(selector || '');
         setPrompt(content);
     };
 
@@ -61,6 +63,8 @@ export const Home = () =>  {
         if (!userContent) {
             if (isYouTube) {
                 await handleFetchTranscript();
+            } else if (selectedPath) {
+                await handlePathSelected(selectedPath);
             } else {
                 await handleFetchWebpage();
             }
@@ -123,14 +127,15 @@ export const Home = () =>  {
                 cols={50}
                 placeholder="System Prompt"
                 value={selectedPromptContent}
-                onChange={(e) => handlePromptChange(e.target.value)}
+                onChange={(e) => handlePromptChange(e.target.value, selectedPath)}
             />
+            <input type="text" id="use-selector" placeholder="Target element" value={selectedPath || ''} onChange={(e) => setSelectedPath(e.target.value)} />
             <div className="summarize-controls">
                 <button
                     id="summarize-transcript"
                     className="btn ai-btn"
                     onClick={handleSummarize}>
-                    Summarize Page with AI
+                    Execute Prompt
                 </button>
                 <div className="chunk-control">
                     <label>
