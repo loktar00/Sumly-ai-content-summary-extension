@@ -4,6 +4,8 @@ import { PromptSelector } from "./PromptSelector";
 import { useSummaryStore } from "@/stores/Summary";
 import { getCurrentUrl, getVideoTitle } from "@/utils/url";
 import { fetchWebpage, getCurrentVideoId, fetchYouTubeTranscript } from "@/utils/content";
+import { PathSelector } from '@/components/PathSelector';
+import { cleanContent } from "@/utils/content";
 
 export const Home = () =>  {
     const [selectedPromptContent, setSelectedPromptContent] = useState<string>('');
@@ -88,6 +90,36 @@ export const Home = () =>  {
         setEnableChunking(e.target.checked);
     };
 
+    const handlePathSelected = async (xpath: string) => {
+        try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (!tab.id) return;
+
+            const [{ result }] = await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: (xpath: string) => {
+                    const element = document.evaluate(
+                        xpath,
+                        document,
+                        null,
+                        XPathResult.FIRST_ORDERED_NODE_TYPE,
+                        null
+                    ).singleNodeValue;
+
+                    return element?.textContent?.trim() || '';
+                },
+                args: [xpath]
+            });
+
+            if (transcriptAreaRef.current) {
+                transcriptAreaRef.current.value = cleanContent(result || '');
+                setContent(cleanContent(result || ''));
+            }
+        } catch (error) {
+            console.error('Error getting element content:', error);
+        }
+    };
+
     return (
         <>
             <PromptSelector onSelect={handlePromptChange}/>
@@ -121,9 +153,16 @@ export const Home = () =>  {
                 placeholder="Content will appear here..."
             />
             <div className="button-group source-buttons">
-                <button id="fetch-webpage" className="btn" onClick={handleFetchWebpage}>Get Page Content</button>
-                <button id="fetch-current-transcript" className="btn" onClick={handleFetchTranscript}>Get Transcript</button>
-                <button id="copy-to-clipboard" className="btn" onClick={handleCopyToClipboard}>Copy to Clipboard</button>
+                <PathSelector onPathSelected={handlePathSelected} />
+                <button id="fetch-webpage" className="btn" onClick={handleFetchWebpage}>
+                    Get Page Content
+                </button>
+                <button id="fetch-current-transcript" className="btn" onClick={handleFetchTranscript}>
+                    Get Transcript
+                </button>
+                <button id="copy-to-clipboard" className="btn" onClick={handleCopyToClipboard}>
+                    Copy to Clipboard
+                </button>
             </div>
         </>
     );

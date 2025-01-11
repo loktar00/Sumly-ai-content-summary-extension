@@ -79,6 +79,15 @@ export async function fetchYouTubeTranscript(videoId: string) {
     }
 }
 
+export function cleanContent(content: string) {
+    return content
+        .replace(/\n\s*\n\s*\n/g, '\n\n')  // Replace 3+ line breaks with 2
+        .replace(/\s+/g, ' ')               // Replace multiple spaces with single space
+        .replace(/\n +/g, '\n')             // Remove spaces at start of lines
+        .replace(/ +\n/g, '\n')             // Remove spaces at end of lines
+        .trim();                            // Remove leading/trailing whitespace
+}
+
 async function getPageContent() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -115,12 +124,7 @@ async function getPageContent() {
             innerText += virtualBody.innerText;
 
             // Clean up multiple line breaks
-            return innerText
-                .replace(/\n\s*\n\s*\n/g, '\n\n')  // Replace 3+ line breaks with 2
-                .replace(/\s+/g, ' ')               // Replace multiple spaces with single space
-                .replace(/\n +/g, '\n')             // Remove spaces at start of lines
-                .replace(/ +\n/g, '\n')             // Remove spaces at end of lines
-                .trim();                            // Remove leading/trailing whitespace
+            return cleanContent(innerText);
         }
     });
 

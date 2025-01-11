@@ -50,3 +50,57 @@ chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
         }
     }
 });
+
+// Xpath selector
+let highlightedElement = null;
+
+function handleMouseOver(event) {
+    if (highlightedElement) {
+        highlightedElement.style.outline = '';
+    }
+
+    highlightedElement = event.target;
+    highlightedElement.style.outline = '2px solid blue';
+}
+
+function handleMouseOut() {
+    if (highlightedElement) {
+        highlightedElement.style.outline = '';
+        highlightedElement = null;
+    }
+}
+
+function handleClick(event) {
+    event.preventDefault();
+    const xpath = getXPath(event.target);
+    console.log('XPath:', xpath);
+    window.postMessage({ type: 'SELECTED_XPATH', xpath }, '*');
+    document.removeEventListener('mouseover', handleMouseOver);
+    document.removeEventListener('mouseout', handleMouseOut);
+    document.removeEventListener('click', handleClick);
+}
+
+function getXPath(element) {
+    if (element.id) {
+        return `//*[@id="${element.id}"]`;
+    }
+    if (element === document.body) {
+        return '/html/body';
+    }
+    let index = 0;
+    const siblings = element.parentNode.childNodes;
+    for (let i = 0; i < siblings.length; i++) {
+        const sibling = siblings[i];
+        if (sibling === element) {
+            return `${getXPath(element.parentNode)}/${element.tagName.toLowerCase()}[${index + 1}]`;
+        }
+        if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
+            index++;
+        }
+    }
+    return '';
+}
+
+document.addEventListener('mouseover', handleMouseOver);
+document.addEventListener('mouseout', handleMouseOut);
+document.addEventListener('click', handleClick);
