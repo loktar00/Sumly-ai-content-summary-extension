@@ -90,25 +90,19 @@ export const Home = () =>  {
         setEnableChunking(e.target.checked);
     };
 
-    const handlePathSelected = async (xpath: string) => {
+    const handlePathSelected = async (selector: string) => {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab.id) return;
 
+            // Get the text content using the selector
             const [{ result }] = await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
-                func: (xpath: string) => {
-                    const element = document.evaluate(
-                        xpath,
-                        document,
-                        null,
-                        XPathResult.FIRST_ORDERED_NODE_TYPE,
-                        null
-                    ).singleNodeValue;
-
+                func: (selector: string) => {
+                    const element = document.querySelector(selector);
                     return element?.textContent?.trim() || '';
                 },
-                args: [xpath]
+                args: [selector]
             });
 
             if (transcriptAreaRef.current) {

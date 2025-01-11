@@ -5,8 +5,9 @@ export type Prompt = {
     name: string;
     content: string;
     pattern: string;
-    isDefault: boolean;
-}
+    isDefault?: boolean;
+    selector?: string; // CSS selector for the element to get content from
+};
 
 interface StorageData {
     savedPrompts?: Record<string, {
@@ -15,6 +16,7 @@ interface StorageData {
         id: string;
         name: string;
         pattern: string;
+        selector?: string; // CSS selector for the element to get content from
     }>;
 }
 
@@ -42,7 +44,8 @@ export async function savePrompt(prompt: Prompt) {
         name: prompt.name,
         content: prompt.content,
         pattern: cleanPattern,
-        isDefault: prompt.isDefault
+        isDefault: prompt.isDefault || false,
+        selector: prompt.selector || ''
     };
 
     await storage.sync.set({ savedPrompts });
@@ -59,7 +62,8 @@ export async function getPrompts(): Promise<Prompt[]> {
         name: pattern,
         content: prompt.content,
         pattern,
-        isDefault: prompt.isDefault
+        isDefault: prompt.isDefault,
+        selector: prompt.selector
     }));
 
 

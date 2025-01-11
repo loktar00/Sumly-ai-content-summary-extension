@@ -1,0 +1,1 @@
+declare function finder(element: Element): string;
