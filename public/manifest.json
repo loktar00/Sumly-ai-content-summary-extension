@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "OmnisAxiom ",
+    "name": "GopherLogic",
     "version": "1.0",
     "description": "Extract and analyze content from any webpage or YouTube video using AI.",
     "permissions": [
@@ -24,7 +24,7 @@
             "48": "icons/icon48.png",
             "128": "icons/icon128.png"
         },
-        "default_title": "OmnisAxiom "
+        "default_title": "GopherLogic"
     },
     "side_panel": {
         "default_path": "index.html"
