@@ -9,7 +9,7 @@ export const App = () =>  (
         <div className="side-panel-container">
             <header>
                 <h1 className="title">
-                    <img src="/logo.svg" alt="Sumly" /> Sumly
+                    <img src="/logo.svg" alt="OmnisAxiom " /> OmnisAxiom
                     <span className="subtitle">Your Content, Simplified</span>
                 </h1>
                 <div className="header-buttons">
