@@ -7,4 +7,6 @@ export interface AISettings {
     url: string;
     model: string;
     num_ctx: number;
+    provider: string;
+    api_key?: string;
 }

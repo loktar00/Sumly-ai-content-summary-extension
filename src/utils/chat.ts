@@ -43,59 +43,98 @@ export const markdownToHtml = (markdown: string) => {
 };
 
 export async function handleStreamingResponse(
-    settings: { url: string; model: string; num_ctx: number },
+    settings: { url: string; model: string; num_ctx: number; provider: string; api_key?: string },
     prompt: string,
     onUpdate: (content: string) => void,
     conversationHistory: { role: string; content: string }[] = [],
     systemPromptOverride: string | null = null,
     abortController?: AbortController
 ) {
+    let accumulatedResponse = '';
     try {
-        const endpoint = `${settings.url}/api/chat`;
         const controller = abortController || new AbortController();
-
-        // Include conversation history in messages
         const messages = [
             { role: 'system', content: systemPromptOverride },
             ...conversationHistory,
             { role: 'user', content: prompt }
-        ].filter(msg => msg.content != null); // Filter out null system prompt if not provided
+        ].filter(msg => msg.content != null);
 
-        const requestBody = {
-            model: settings.model,
-            messages: messages,
-            options: {
-                temperature: 0.8,
-                num_ctx: settings.num_ctx,
-            },
-            stream: true
-        };
+        if (settings.provider === 'Deepseek') {
+            const response = await fetch(`${settings.url}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.api_key}`
+                },
+                body: JSON.stringify({
+                    model: settings.model,
+                    messages: messages,
+                    stream: true
+                }),
+                signal: controller.signal
+            });
 
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-            signal: controller.signal
-        });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Deepseek API request failed (${response.status}): ${errorText || response.statusText}`);
+            }
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API request failed (${response.status}): ${errorText || response.statusText}`);
-        }
+            const reader = response.body?.getReader();
 
-        const reader = response.body?.getReader();
-        let accumulatedResponse = '';
-
-        try {
             while (true) {
-                if (!reader) {
-                    break;
+                const { done, value } = await reader!.read();
+                if (done) break;
+
+                const chunk = new TextDecoder().decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') continue;
+
+                        try {
+                            const parsed = JSON.parse(data);
+                            const content = parsed.choices[0]?.delta?.content;
+                            if (content) {
+                                accumulatedResponse += content;
+                                onUpdate(accumulatedResponse);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing SSE data:', e);
+                        }
+                    }
                 }
+            }
+        } else {
+            // Original Ollama implementation
+            const response = await fetch(`${settings.url}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: settings.model,
+                    messages: messages,
+                    options: {
+                        temperature: 0.8,
+                        num_ctx: settings.num_ctx,
+                    },
+                    stream: true
+                }),
+                signal: controller.signal
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API request failed (${response.status}): ${errorText || response.statusText}`);
+            }
+
+            const reader = response.body?.getReader();
+
+            while (true) {
+                if (!reader) break;
 
                 const { done, value } = await reader.read();
-                if (done) {
-                    break;
-                }
+                if (done) break;
 
                 const chunk = new TextDecoder().decode(value);
                 const lines = chunk.split('\n');
@@ -114,15 +153,14 @@ export async function handleStreamingResponse(
                     }
                 }
             }
-        } catch (error) {
-            console.error('Error in handleStreamingResponse:', error);
-            throw error;
         }
 
         return accumulatedResponse;
     } catch (error) {
-        console.error('Error in handleStreamingResponse:', error);
-        throw error;
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw error;
+        }
+        throw new Error(`API request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
 
@@ -179,7 +217,7 @@ interface ChunkProgress {
 export async function chunkAndSummarize(
     content: string,
     contextSize: number,
-    settings: { url: string; model: string; num_ctx: number },
+    settings: { url: string; model: string; num_ctx: number, provider: string, api_key?: string },
     systemPrompt: string,
     onProgressUpdate?: (progress: ChunkProgress) => void,
     onStreamingUpdate?: (content: string) => void,
