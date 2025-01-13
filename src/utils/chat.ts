@@ -203,7 +203,7 @@ export function estimateTokens(text: string) {
     return Math.max(1, estimate);
 }
 
-export function calculateConversationTokens(history: any[]) {
+export function calculateConversationTokens(history: { role: string; content: string }[]) {
     // Add extra tokens for message formatting and role indicators
     const formatTokens = history.length * 4; // ~4 tokens per message for format
 
@@ -215,8 +215,8 @@ export function calculateConversationTokens(history: any[]) {
     return formatTokens + contentTokens;
 }
 
-export function updateTokenCount(conversationHistory: any[]) {
-    const totalTokens = parseInt(calculateConversationTokens(conversationHistory), 10);
+export function updateTokenCount(conversationHistory: { role: string; content: string }[]) {
+    const totalTokens = calculateConversationTokens(conversationHistory);
     return totalTokens;
 }
 

@@ -25,6 +25,9 @@ export const Summary = () => {
     const [chunkProgress, setChunkProgress] = useState<{ current: number; total: number; message: string } | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
+
+    console.log(settings);
+
     const handleStop = () => {
         if (abortControllerRef.current) {
             abortControllerRef.current.abort();

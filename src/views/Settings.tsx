@@ -1,31 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'wouter';
-import { storage } from '@/utils/storage';
 import { ModelConfig, modelProviders } from '@/Configs/ModelProviders';
 import { Loader } from '@/components/Loader';
 import { useSettings } from '@/hooks/useSettings';
 
 export const Settings = () => {
-    const { settings: initialSettings, isLoading: settingsLoading, error: settingsError } = useSettings();
-    const [selectedProvider, setSelectedProvider] = useState<string>('Ollama');
-    const [providerConfigs, setProviderConfigs] = useState<Record<string, ModelConfig>>(modelProviders);
+    const {
+        settings,
+        isLoading: settingsLoading,
+        error: settingsError,
+        saveSettings,
+        getProviderSettings,
+        selectedProvider,
+        setSelectedProvider
+    } = useSettings();
+
     const [availableModels, setAvailableModels] = useState<string[]>([]);
 
-    useEffect(() => {
-        if (initialSettings) {
-            setSelectedProvider(initialSettings.provider);
-            setProviderConfigs(prev => ({
-                ...prev,
-                [initialSettings.provider]: initialSettings
-            }));
+    const handleProviderChange = (provider: string) => {
+        setSelectedProvider(provider);
+        if (provider === 'Ollama') {
+            const providerSettings = getProviderSettings(provider);
+            if (providerSettings.model_selection) {
+                fetchModelsForProvider(providerSettings);
+            }
+        } else {
+            setAvailableModels([]);
         }
-    }, [initialSettings]);
+    };
 
-    if (!selectedProvider || !providerConfigs[selectedProvider]) {
-        return <Loader />;
-    }
+    const handleConfigChange = (field: keyof ModelConfig, value: string | number) => {
+        if (!settings) return;
 
-    const currentProvider = providerConfigs[selectedProvider];
+        saveSettings(selectedProvider, {
+            ...settings,
+            [field]: value
+        });
+    };
 
     const fetchModelsForProvider = async (provider: ModelConfig) => {
         try {
@@ -41,31 +52,9 @@ export const Settings = () => {
         }
     };
 
-    const handleProviderChange = (provider: string) => {
-        setSelectedProvider(provider);
-        // Reset available models when switching to non-Ollama provider
-        if (provider !== 'Ollama') {
-            setAvailableModels([]);
-        } else if (providerConfigs[provider]?.model_selection) {
-            fetchModelsForProvider(providerConfigs[provider]);
-        }
-    };
-
-    const handleConfigChange = (provider: string, field: keyof ModelConfig, value: string | number) => {
-        setProviderConfigs(prev => ({
-            ...prev,
-            [provider]: {
-                ...prev[provider],
-                [field]: value
-            }
-        }));
-    };
-
     const handleSave = async () => {
-        await storage.sync.set({
-            selectedProvider,
-            providerConfigs
-        });
+        const currentConfig = getProviderSettings(selectedProvider);
+        await saveSettings(selectedProvider, currentConfig);
         alert('Settings saved successfully!');
     };
 
@@ -100,29 +89,29 @@ export const Settings = () => {
                     <label>Server URL:</label>
                     <input
                         type="text"
-                        value={currentProvider.url}
-                        onChange={(e) => handleConfigChange(selectedProvider, 'url', e.target.value)}
+                        value={settings?.url}
+                        onChange={(e) => handleConfigChange('url', e.target.value)}
                     />
                 </div>
 
-                {currentProvider.api_key !== undefined && (
+                {settings?.api_key !== undefined && (
                     <div className="form-group">
                         <label>API Key:</label>
                         <input
                             type="password"
-                            value={currentProvider.api_key}
-                            onChange={(e) => handleConfigChange(selectedProvider, 'api_key', e.target.value)}
+                            value={settings?.api_key}
+                            onChange={(e) => handleConfigChange('api_key', e.target.value)}
                         />
                     </div>
                 )}
 
                 <div className="form-group">
                     <label>Model:</label>
-                    {currentProvider.model_selection ? (
+                    {settings?.model_selection ? (
                         <>
                             <select
-                                value={currentProvider.model}
-                                onChange={(e) => handleConfigChange(selectedProvider, 'model', e.target.value)}
+                                value={settings?.model}
+                                onChange={(e) => handleConfigChange('model', e.target.value)}
                             >
                                 <option value="">Select a model...</option>
                                 {availableModels.map(model => (
@@ -131,7 +120,7 @@ export const Settings = () => {
                             </select>
                             <button
                                 className="btn"
-                                onClick={() => fetchModelsForProvider(currentProvider)}
+                                onClick={() => fetchModelsForProvider(getProviderSettings(selectedProvider))}
                             >
                                 Refresh Models
                             </button>
@@ -139,13 +128,13 @@ export const Settings = () => {
                     ) : (
                         <input
                             type="text"
-                            value={currentProvider.model}
+                            value={settings?.model}
                             readOnly
                         />
                     )}
                 </div>
 
-                {currentProvider.temperature !== undefined && (
+                {settings?.temperature !== undefined && (
                     <div className="form-group">
                         <label>Temperature:</label>
                         <input
@@ -153,32 +142,32 @@ export const Settings = () => {
                             step="0.1"
                             min="0"
                             max="2"
-                            value={currentProvider.temperature}
-                            onChange={(e) => handleConfigChange(selectedProvider, 'temperature', Number(e.target.value))}
+                            value={settings?.temperature}
+                            onChange={(e) => handleConfigChange('temperature', Number(e.target.value))}
                         />
                     </div>
                 )}
 
-                {currentProvider.num_ctx !== undefined && (
+                {settings?.num_ctx !== undefined && (
                     <div className="form-group">
                         <label>Context Window:</label>
                         <input
                             type="number"
-                            value={currentProvider.num_ctx}
-                            onChange={(e) => handleConfigChange(selectedProvider, 'num_ctx', Number(e.target.value))}
+                            value={settings?.num_ctx}
+                            onChange={(e) => handleConfigChange('num_ctx', Number(e.target.value))}
                         />
                     </div>
                 )}
 
-                {currentProvider.max_tokens !== undefined && (
+                {settings?.max_tokens !== undefined && (
                     <div className="form-group">
                         <label>Max Return Tokens:</label>
                         <input
                             type="number"
-                            value={currentProvider.max_tokens}
+                            value={settings?.max_tokens}
                             min={1}
                             max={8000}
-                            onChange={(e) => handleConfigChange(selectedProvider, 'max_tokens', Number(e.target.value))}
+                            onChange={(e) => handleConfigChange('max_tokens', Number(e.target.value))}
                         />
                     </div>
                 )}
