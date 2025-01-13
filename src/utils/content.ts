@@ -1,4 +1,3 @@
-
 export async function getCurrentVideoId() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tabs[0]?.url) return null;
@@ -90,7 +89,6 @@ export function cleanContent(content: string) {
 
 async function getPageContent() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
     if (!tab?.id) {
         throw new Error('No active tab found');
     }
@@ -99,36 +97,33 @@ async function getPageContent() {
     const [{ result }] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-            // Create a clone of the document
-            const virtualDoc = document.cloneNode(true) as Document;
-            const virtualBody = virtualDoc.querySelector('body');
+            try {
+                // Otherwise, get content from body but exclude common non-content areas
+                const body = document.body;
+                const virtualDoc = body.cloneNode(true) as Document;
 
-            if (!virtualBody) {
+                const excludeSelectors = [
+                    'script', 'style', 'noscript', 'svg', 'img', 'video', 'audio'
+                ].join(',');
+
+                const elementsToExclude = virtualDoc.querySelectorAll(excludeSelectors);
+                elementsToExclude.forEach(el => {
+                    if (el.textContent) {
+                        el.textContent = '';
+                    }
+                });
+
+                const content = virtualDoc.textContent || '';
+
+                return content.trim();
+            } catch (error) {
+                console.error('Error extracting content:', error);
                 return document.body.innerText;
             }
-
-            // Remove unwanted elements from the clone
-            const elementsToRemove = virtualBody.querySelectorAll(
-                'script, style, noscript, img, svg, video, audio, nav, footer, header, aside'
-            );
-
-            elementsToRemove.forEach(el => el.remove());
-
-            let innerText = '';
-
-            const main = virtualBody.querySelector('main');
-            if (main) {
-                innerText += main.innerText;
-            }
-
-            innerText += virtualBody.innerText;
-
-            // Clean up multiple line breaks
-            return cleanContent(innerText);
         }
     });
 
-    return result;
+    return result ? cleanContent(result) : '';
 }
 
 export async function fetchWebpage() {

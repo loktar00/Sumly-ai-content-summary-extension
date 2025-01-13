@@ -51,6 +51,7 @@ export async function handleStreamingResponse(
     systemPromptOverride: string | null = null,
     abortController?: AbortController
 ) {
+
     let accumulatedResponse = '';
     try {
         const controller = abortController || new AbortController();

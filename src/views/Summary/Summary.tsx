@@ -13,7 +13,12 @@ import { useSettings } from '@/hooks/useSettings';
 
 export const Summary = () => {
     const { content, prompt, enableChunking } = useSummaryStore();
-    const { settings, isLoading: settingsLoading, error: settingsError } = useSettings();
+    const {
+        settings,
+        isLoading: settingsLoading,
+        error: settingsError,
+        getProviderSettings
+    } = useSettings();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -24,9 +29,6 @@ export const Summary = () => {
     const { ref: messagesRef, scrollToBottom } = useAutoScroll([messages, streamingMessage]);
     const [chunkProgress, setChunkProgress] = useState<{ current: number; total: number; message: string } | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-
-
-    console.log(settings);
 
     const handleStop = () => {
         if (abortControllerRef.current) {
@@ -46,10 +48,13 @@ export const Summary = () => {
     };
 
     const handleAIInteraction = async (message: string, isInitial = false) => {
-        if (!settings) {
+        if (!settings?.provider) {
             console.error('Settings not available');
             return;
         }
+
+        // Get fresh settings every time
+        const currentSettings = getProviderSettings(settings.provider);
 
         try {
             setIsLoading(true);
@@ -77,7 +82,7 @@ export const Summary = () => {
 
             // Get streaming response with conversation history
             const response = await handleStreamingResponse(
-                settings,
+                currentSettings,
                 message,
                 handleUpdate,
                 newMessages,
@@ -113,6 +118,7 @@ export const Summary = () => {
                 return;
             }
 
+            const currentSettings = getProviderSettings(settings.provider);
             initializationRef.current = true;
             abortControllerRef.current = new AbortController();
 
@@ -120,26 +126,26 @@ export const Summary = () => {
                 let initialMessage = `${content}`;
 
                 // Chunking is only supported for Ollama
-                if (settings.provider === 'Ollama') {
-                    if (!settings || !settings.num_ctx) {
+                if (currentSettings.provider === 'Ollama') {
+                    if (!currentSettings.num_ctx) {
                         throw new Error('num_ctx is not set');
                     }
 
-                    // Only process chunks if content is too large
+                    // Use currentSettings instead of settings
                     const estimatedTokens = estimateTokens(content);
                     const systemPromptTokens = estimateTokens(prompt);
                     const messageFormatTokens = 8;
                     const safetyMargin = 50;
                     const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
 
-                    if (estimatedTokens + totalOverhead > settings.num_ctx && enableChunking) {
+                    if (estimatedTokens + totalOverhead > currentSettings.num_ctx && enableChunking) {
                         setTokenCount(estimatedTokens + totalOverhead);
                         setChunkProgress({ current: 0, total: 0, message: 'Analyzing content size...' });
 
                         initialMessage = await chunkAndSummarize(
                             content,
-                            settings.num_ctx,
-                            settings,
+                            currentSettings.num_ctx,
+                            currentSettings,
                             prompt,
                             (progress) => {
                                 setChunkProgress({
@@ -169,7 +175,7 @@ export const Summary = () => {
         };
 
         initializeSummary();
-    }, [settings, content, prompt]);
+    }, [settings, content, prompt, getProviderSettings]);
 
     // Handle sending new messages
     const handleSendMessage = async () => {

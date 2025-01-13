@@ -18,6 +18,7 @@ export const useSettings = (): UseSettingsReturn => {
     const [savedSettings, setSavedSettings] = useState<Record<string, Partial<ModelConfig>>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [initialized, setInitialized] = useState(false);
 
     // Load saved settings on mount
     useEffect(() => {
@@ -28,13 +29,7 @@ export const useSettings = (): UseSettingsReturn => {
 
                 setSavedSettings(providerSettings);
                 setSelectedProvider(savedProvider);
-
-                // Set initial settings based on selected provider
-                const mergedSettings = {
-                    ...modelProviders[savedProvider as keyof typeof modelProviders],
-                    ...providerSettings[savedProvider]
-                };
-                setSettings(mergedSettings);
+                setInitialized(true);
             } catch (error) {
                 setError(error instanceof Error ? error.message : 'Failed to load settings');
             } finally {
@@ -45,31 +40,38 @@ export const useSettings = (): UseSettingsReturn => {
         loadSettings();
     }, []);
 
-    // Update settings when provider changes
-    useEffect(() => {
-        const mergedSettings = {
-            ...modelProviders[selectedProvider as keyof typeof modelProviders],
-            ...savedSettings[selectedProvider]
-        };
-        setSettings(mergedSettings);
-    }, [selectedProvider, savedSettings]);
-
     const getProviderSettings = (provider: string): ModelConfig => {
         if (!(provider in modelProviders)) {
             throw new Error(`Invalid provider: ${provider}`);
         }
-        return {
+
+        // Only use saved settings after initialization
+        const currentSavedSettings = initialized ? savedSettings[provider] || {} : {};
+
+        const mergedSettings = {
             ...modelProviders[provider as keyof typeof modelProviders],
-            ...savedSettings[provider]
+            ...currentSavedSettings,
+            provider
         };
+
+        return mergedSettings;
     };
+
+    // Update settings whenever savedSettings changes
+    useEffect(() => {
+        if (!initialized || !selectedProvider) return;
+
+        const mergedSettings = getProviderSettings(selectedProvider);
+        setSettings(mergedSettings);
+    }, [selectedProvider, savedSettings, initialized]);
 
     const saveSettings = async (provider: string, config: Partial<ModelConfig>) => {
         const newSavedSettings = {
             ...savedSettings,
             [provider]: {
                 ...savedSettings[provider],
-                ...config
+                ...config,
+                provider
             }
         };
 
@@ -79,18 +81,11 @@ export const useSettings = (): UseSettingsReturn => {
         });
 
         setSavedSettings(newSavedSettings);
-
-        if (provider === selectedProvider) {
-            setSettings({
-                ...modelProviders[provider as keyof typeof modelProviders],
-                ...newSavedSettings[provider]
-            });
-        }
     };
 
     return {
         settings,
-        isLoading,
+        isLoading: isLoading || !initialized,
         error,
         saveSettings,
         getProviderSettings,

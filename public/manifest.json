@@ -40,7 +40,8 @@
     "web_accessible_resources": [{
         "resources": [
             "index.html",
-            "finder.js"
+            "finder.js",
+            "content.js"
         ],
         "matches": ["<all_urls>"]
     }],
@@ -53,7 +54,7 @@
     "content_scripts": [
         {
             "matches": ["<all_urls>"],
-            "js": ["finder.js"]
+            "js": ["finder.js", "content.js"]
         }
     ],
     "icons": {
