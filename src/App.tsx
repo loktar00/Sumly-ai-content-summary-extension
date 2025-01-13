@@ -10,7 +10,6 @@ export const App = () =>  (
             <header>
                 <h1 className="title">
                     <img src="/icons/icon48.png" alt="GopherLogic" /> GopherLogic
-                    <span className="subtitle">Your Content, Simplified</span>
                 </h1>
                 <div className="header-buttons">
                     <Link to="/prompt-manager">
