@@ -151,7 +151,7 @@ header,
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-md);
+  padding: var(--spacing-lg);
 }
 
 .summary-header {
@@ -188,8 +188,8 @@ h1.title .subtitle {
 }
 
 .title img {
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
 }
 
 h2 {

@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="public/logo.svg" alt="Sumly Logo" width="200"/>
-  <h1>Sumly</h1>
+  <img src="public/logo.png" alt="GopherLogic Logo" width="128"/>
+  <h1>GopherLogic</h1>
   <p><em>Your Content, Simplified</em></p>
 </div>
 
@@ -95,7 +95,7 @@ A Chrome extension that helps analyze and discuss content from any webpage or Yo
 
 ### For Any Webpage
 1. Navigate to any webpage
-2. Click the Sumly icon to open the side panel
+2. Click the GopherLogic icon to open the side panel
 3. Click "Get Page Content" to extract the main content
 4. The appropriate prompt will be automatically selected based on URL patterns
 5. Click "Summarize Page with AI" to generate a summary
@@ -104,7 +104,7 @@ A Chrome extension that helps analyze and discuss content from any webpage or Yo
 
 ### For YouTube Videos
 1. Navigate to any YouTube video
-2. Click the Sumly icon to open the side panel
+2. Click the GopherLogic icon to open the side panel
 3. Click "Get Transcript" to fetch the video transcript
 4. The appropriate prompt will be automatically selected based on URL patterns
 5. Click "Summarize Page with AI" to generate a summary

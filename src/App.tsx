@@ -9,8 +9,7 @@ export const App = () =>  (
         <div className="side-panel-container">
             <header>
                 <h1 className="title">
-                    <img src="/logo.svg" alt="Sumly" /> Sumly
-                    <span className="subtitle">Your Content, Simplified</span>
+                    <img src="/icons/icon48.png" alt="GopherLogic" /> GopherLogic
                 </h1>
                 <div className="header-buttons">
                     <Link to="/prompt-manager">
