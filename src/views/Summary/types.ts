@@ -6,5 +6,5 @@ export interface Message {
 export interface AISettings {
     url: string;
     model: string;
-    numCtx: number;
+    num_ctx: number;
 }

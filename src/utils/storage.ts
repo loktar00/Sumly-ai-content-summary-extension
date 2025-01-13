@@ -1,5 +1,7 @@
+import { ModelConfig } from '@/types/settings';
+
 // Types to match Chrome's storage API
-type StorageValue = string | number | boolean | null | undefined | StorageValue[] | { [key: string]: StorageValue };
+type StorageValue = string | number | boolean | null | undefined | StorageValue[] | { [key: string]: StorageValue } | ModelConfig;
 type StorageChange = {
     oldValue?: StorageValue;
     newValue?: StorageValue;

@@ -106,7 +106,7 @@ export const Summary = () => {
     useEffect(() => {
         const initializeSettings = async () => {
             try {
-                const aiSettings = await api.getAiSettings();
+                const aiSettings = await api.getApiSettings();
                 setSettings(aiSettings);
             } catch (error) {
                 setError('Failed to initialize settings');
@@ -136,13 +136,13 @@ export const Summary = () => {
                 const safetyMargin = 50;
                 const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
 
-                if (estimatedTokens + totalOverhead > settings.numCtx && enableChunking) {
+                if (estimatedTokens + totalOverhead > settings.num_ctx && enableChunking) {
                     setTokenCount(estimatedTokens + totalOverhead);
                     setChunkProgress({ current: 0, total: 0, message: 'Analyzing content size...' });
 
                     initialMessage = await chunkAndSummarize(
                         content,
-                        settings.numCtx,
+                        settings.num_ctx,
                         settings,
                         prompt,
                         (progress) => {
@@ -221,7 +221,7 @@ export const Summary = () => {
                     {isLoading && (
                         <div id="chat-loading" className="chat-loading">
                             <Loader />
-                            <TokenDisplay tokenCount={Number(tokenCount)} max={Number(settings?.numCtx)} />
+                            <TokenDisplay tokenCount={Number(tokenCount)} max={Number(settings?.num_ctx)} />
                             <div className="button-group loading-controls">
                                 <Link href="/" onClick={handleBack}><button className="btn">← Back</button></Link>
                                 <button className="btn danger-btn" onClick={handleStop}>Stop</button>
@@ -242,7 +242,7 @@ export const Summary = () => {
                             rows={3}
                             onKeyDown={handleKeyDown}
                             placeholder="Ask a question about the content..." />
-                        <TokenDisplay tokenCount={Number(tokenCount)} max={Number(settings?.numCtx)} />
+                        <TokenDisplay tokenCount={Number(tokenCount)} max={Number(settings?.num_ctx)} />
                         <div className="button-group">
                             <Link href="/"><button className="btn">← Back</button></Link>
                             <button

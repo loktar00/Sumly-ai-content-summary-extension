@@ -43,7 +43,7 @@ export const markdownToHtml = (markdown: string) => {
 };
 
 export async function handleStreamingResponse(
-    settings: { url: string; model: string; numCtx: number },
+    settings: { url: string; model: string; num_ctx: number },
     prompt: string,
     onUpdate: (content: string) => void,
     conversationHistory: { role: string; content: string }[] = [],
@@ -66,7 +66,7 @@ export async function handleStreamingResponse(
             messages: messages,
             options: {
                 temperature: 0.8,
-                num_ctx: settings.numCtx,
+                num_ctx: settings.num_ctx,
             },
             stream: true
         };
@@ -179,7 +179,7 @@ interface ChunkProgress {
 export async function chunkAndSummarize(
     content: string,
     contextSize: number,
-    settings: { url: string; model: string; numCtx: number },
+    settings: { url: string; model: string; num_ctx: number },
     systemPrompt: string,
     onProgressUpdate?: (progress: ChunkProgress) => void,
     onStreamingUpdate?: (content: string) => void,
