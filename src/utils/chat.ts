@@ -1,4 +1,5 @@
 import { CONSTANTS } from '@/constants';
+import { ModelConfig } from '@/Configs/ModelProviders';
 
 // Simple markdown parser
 export const markdownToHtml = (markdown: string) => {
@@ -43,7 +44,7 @@ export const markdownToHtml = (markdown: string) => {
 };
 
 export async function handleStreamingResponse(
-    settings: { url: string; model: string; num_ctx: number; provider: string; api_key?: string },
+    settings: ModelConfig,
     prompt: string,
     onUpdate: (content: string) => void,
     conversationHistory: { role: string; content: string }[] = [],
@@ -69,7 +70,11 @@ export async function handleStreamingResponse(
                 body: JSON.stringify({
                     model: settings.model,
                     messages: messages,
-                    stream: true
+                    stream: true,
+                    options: {
+                        temperature: settings.temperature,
+                        max_tokens: settings.max_tokens
+                    }
                 }),
                 signal: controller.signal
             });
@@ -83,7 +88,9 @@ export async function handleStreamingResponse(
 
             while (true) {
                 const { done, value } = await reader!.read();
-                if (done) break;
+                if (done) {
+                    break;
+                }
 
                 const chunk = new TextDecoder().decode(value);
                 const lines = chunk.split('\n');
@@ -91,7 +98,9 @@ export async function handleStreamingResponse(
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         const data = line.slice(6);
-                        if (data === '[DONE]') continue;
+                        if (data === '[DONE]') {
+                            continue;
+                        }
 
                         try {
                             const parsed = JSON.parse(data);
@@ -115,7 +124,7 @@ export async function handleStreamingResponse(
                     model: settings.model,
                     messages: messages,
                     options: {
-                        temperature: 0.8,
+                        temperature: settings.temperature,
                         num_ctx: settings.num_ctx,
                     },
                     stream: true
@@ -131,16 +140,19 @@ export async function handleStreamingResponse(
             const reader = response.body?.getReader();
 
             while (true) {
-                if (!reader) break;
+                const { done, value } = await reader!.read();
 
-                const { done, value } = await reader.read();
-                if (done) break;
+                if (done) {
+                    break;
+                }
 
                 const chunk = new TextDecoder().decode(value);
                 const lines = chunk.split('\n');
 
                 for (const line of lines) {
-                    if (!line.trim()) continue;
+                    if (!line.trim()) {
+                        continue;
+                    }
 
                     try {
                         const data = JSON.parse(line);
@@ -217,7 +229,7 @@ interface ChunkProgress {
 export async function chunkAndSummarize(
     content: string,
     contextSize: number,
-    settings: { url: string; model: string; num_ctx: number, provider: string, api_key?: string },
+    settings: ModelConfig,
     systemPrompt: string,
     onProgressUpdate?: (progress: ChunkProgress) => void,
     onStreamingUpdate?: (content: string) => void,

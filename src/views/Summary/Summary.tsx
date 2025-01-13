@@ -1,20 +1,21 @@
 import { useEffect, useRef, useState, KeyboardEvent } from 'react';
 import { Link } from 'wouter';
 import { handleStreamingResponse, updateTokenCount, estimateTokens, chunkAndSummarize } from '@/utils/chat';
-import { api } from '@/api/api';
 import { MessageList } from './MessageList';
 import { StreamingMessage } from './StreamingMessage';
-import { Message, AISettings } from './types';
+import { Message } from './types';
 import { useSummaryStore } from '@/stores/Summary';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
+import { ModelLabel } from '@/components/ModelLabel';
 import { Loader } from '@/components/Loader';
 import { TokenDisplay } from './TokenDisplay';
+import { useSettings } from '@/hooks/useSettings';
 
 export const Summary = () => {
     const { content, prompt, enableChunking } = useSummaryStore();
+    const { settings, isLoading: settingsLoading, error: settingsError } = useSettings();
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [settings, setSettings] = useState<AISettings | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [tokenCount, setTokenCount] = useState<number>(0);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
@@ -102,20 +103,6 @@ export const Summary = () => {
         }
     };
 
-    // Initialize settings first
-    useEffect(() => {
-        const initializeSettings = async () => {
-            try {
-                const aiSettings = await api.getApiSettings();
-                setSettings(aiSettings);
-            } catch (error) {
-                setError('Failed to initialize settings');
-            }
-        };
-
-        initializeSettings();
-    }, []);
-
     // Initialize the summary after settings are available
     useEffect(() => {
         const initializeSummary = async () => {
@@ -129,34 +116,41 @@ export const Summary = () => {
             try {
                 let initialMessage = `${content}`;
 
-                // Only process chunks if content is too large
-                const estimatedTokens = estimateTokens(content);
-                const systemPromptTokens = estimateTokens(prompt);
-                const messageFormatTokens = 8;
-                const safetyMargin = 50;
-                const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
+                // Chunking is only supported for Ollama
+                if (settings.provider === 'Ollama') {
+                    if (!settings || !settings.num_ctx) {
+                        throw new Error('num_ctx is not set');
+                    }
 
-                if (estimatedTokens + totalOverhead > settings.num_ctx && enableChunking) {
-                    setTokenCount(estimatedTokens + totalOverhead);
-                    setChunkProgress({ current: 0, total: 0, message: 'Analyzing content size...' });
+                    // Only process chunks if content is too large
+                    const estimatedTokens = estimateTokens(content);
+                    const systemPromptTokens = estimateTokens(prompt);
+                    const messageFormatTokens = 8;
+                    const safetyMargin = 50;
+                    const totalOverhead = systemPromptTokens + messageFormatTokens + safetyMargin;
 
-                    initialMessage = await chunkAndSummarize(
-                        content,
-                        settings.num_ctx,
-                        settings,
-                        prompt,
-                        (progress) => {
-                            setChunkProgress({
-                                current: progress.currentChunk,
-                                total: progress.totalChunks,
-                                message: progress.message
-                            });
-                        },
-                        (streamContent) => {
-                            setStreamingMessage(streamContent);
-                        },
-                        abortControllerRef.current
-                    );
+                    if (estimatedTokens + totalOverhead > settings.num_ctx && enableChunking) {
+                        setTokenCount(estimatedTokens + totalOverhead);
+                        setChunkProgress({ current: 0, total: 0, message: 'Analyzing content size...' });
+
+                        initialMessage = await chunkAndSummarize(
+                            content,
+                            settings.num_ctx,
+                            settings,
+                            prompt,
+                            (progress) => {
+                                setChunkProgress({
+                                    current: progress.currentChunk,
+                                    total: progress.totalChunks,
+                                    message: progress.message
+                                });
+                            },
+                            (streamContent) => {
+                                setStreamingMessage(streamContent);
+                            },
+                            abortControllerRef.current
+                        );
+                    }
                 }
 
                 await handleAIInteraction(`${prompt}\n\n${initialMessage}`, true);
@@ -193,11 +187,12 @@ export const Summary = () => {
         }
     };
 
+    if (settingsLoading) return <Loader />;
+    if (settingsError) return <div className="error-text">{settingsError}</div>;
+
     return (
         <div className="summary-content">
-            <div className="model-label">
-                <span className="glow text">Model: {settings?.model}</span>
-            </div>
+            <ModelLabel provider={settings?.provider || ''} model={settings?.model || ''} />
             <div className="main-content">
                 <div id="chat-container" className="chat-container" role="log" aria-live="polite">
                     <div
@@ -224,7 +219,7 @@ export const Summary = () => {
                             <TokenDisplay tokenCount={Number(tokenCount)} max={Number(settings?.num_ctx)} />
                             <div className="button-group loading-controls">
                                 <Link href="/" onClick={handleBack}><button className="btn">← Back</button></Link>
-                                <button className="btn danger-btn" onClick={handleStop}>Stop</button>
+                                <button className="btn" onClick={handleStop}>Stop</button>
                             </div>
                         </div>
                     )}

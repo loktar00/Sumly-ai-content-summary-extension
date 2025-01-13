@@ -1,41 +1,31 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
 import { storage } from '@/utils/storage';
-import { modelProviders } from '@/Configs/ModelProviders';
+import { ModelConfig, modelProviders } from '@/Configs/ModelProviders';
 import { Loader } from '@/components/Loader';
-import { ModelConfig } from '@/types/settings';
+import { useSettings } from '@/hooks/useSettings';
 
 export const Settings = () => {
-    const [isLoading, setIsLoading] = useState(true);
-    const [selectedProvider, setSelectedProvider] = useState<string>('');
-    const [providerConfigs, setProviderConfigs] = useState<Record<string, ModelConfig>>({});
+    const { settings: initialSettings, isLoading: settingsLoading, error: settingsError } = useSettings();
+    const [selectedProvider, setSelectedProvider] = useState<string>('Ollama');
+    const [providerConfigs, setProviderConfigs] = useState<Record<string, ModelConfig>>(modelProviders);
     const [availableModels, setAvailableModels] = useState<string[]>([]);
 
     useEffect(() => {
-        const loadSettings = async () => {
-            const settings = await storage.sync.get(['selectedProvider', 'providerConfigs']);
-            const provider = settings.selectedProvider || 'Ollama';
-            const configs = settings.providerConfigs || modelProviders;
-
-            setSelectedProvider(provider);
-            setProviderConfigs(configs);
-
-            // If Ollama is selected, fetch models
-            if (provider === 'Ollama' && configs[provider].model_selection) {
-                await fetchModelsForProvider(configs[provider]);
-            }
-
-            setIsLoading(false);
-        };
-        loadSettings();
-    }, []);
-
-    // Fetch models when provider changes to Ollama
-    useEffect(() => {
-        if (selectedProvider === 'Ollama' && providerConfigs[selectedProvider]?.model_selection) {
-            fetchModelsForProvider(providerConfigs[selectedProvider]);
+        if (initialSettings) {
+            setSelectedProvider(initialSettings.provider);
+            setProviderConfigs(prev => ({
+                ...prev,
+                [initialSettings.provider]: initialSettings
+            }));
         }
-    }, [selectedProvider]);
+    }, [initialSettings]);
+
+    if (!selectedProvider || !providerConfigs[selectedProvider]) {
+        return <Loader />;
+    }
+
+    const currentProvider = providerConfigs[selectedProvider];
 
     const fetchModelsForProvider = async (provider: ModelConfig) => {
         try {
@@ -56,6 +46,8 @@ export const Settings = () => {
         // Reset available models when switching to non-Ollama provider
         if (provider !== 'Ollama') {
             setAvailableModels([]);
+        } else if (providerConfigs[provider]?.model_selection) {
+            fetchModelsForProvider(providerConfigs[provider]);
         }
     };
 
@@ -77,9 +69,12 @@ export const Settings = () => {
         alert('Settings saved successfully!');
     };
 
-    if (isLoading) return <Loader />;
-
-    const currentProvider = providerConfigs[selectedProvider];
+    if (settingsLoading) {
+        return <Loader />;
+    }
+    if (settingsError) {
+        return <div className="error-text">{settingsError}</div>;
+    }
 
     return (
         <div className="settings-content">
@@ -111,7 +106,7 @@ export const Settings = () => {
                 </div>
 
                 {currentProvider.api_key !== undefined && (
-                    <div className="setting-group">
+                    <div className="form-group">
                         <label>API Key:</label>
                         <input
                             type="password"
@@ -150,6 +145,20 @@ export const Settings = () => {
                     )}
                 </div>
 
+                {currentProvider.temperature !== undefined && (
+                    <div className="form-group">
+                        <label>Temperature:</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="2"
+                            value={currentProvider.temperature}
+                            onChange={(e) => handleConfigChange(selectedProvider, 'temperature', Number(e.target.value))}
+                        />
+                    </div>
+                )}
+
                 {currentProvider.num_ctx !== undefined && (
                     <div className="form-group">
                         <label>Context Window:</label>
@@ -160,11 +169,25 @@ export const Settings = () => {
                         />
                     </div>
                 )}
-            </div>
 
-            <button onClick={handleSave} className="btn">
-                Save Settings
-            </button>
+                {currentProvider.max_tokens !== undefined && (
+                    <div className="form-group">
+                        <label>Max Return Tokens:</label>
+                        <input
+                            type="number"
+                            value={currentProvider.max_tokens}
+                            min={1}
+                            max={8000}
+                            onChange={(e) => handleConfigChange(selectedProvider, 'max_tokens', Number(e.target.value))}
+                        />
+                    </div>
+                )}
+            </div>
+            <div className="form-group--center">
+                <button onClick={handleSave} className="btn ai-btn">
+                    Save Settings
+                </button>
+            </div>
         </div>
     );
 };

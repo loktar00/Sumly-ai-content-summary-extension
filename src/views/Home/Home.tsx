@@ -4,15 +4,27 @@ import { PromptSelector } from "./PromptSelector";
 import { useSummaryStore } from "@/stores/Summary";
 import { getCurrentUrl, getVideoTitle } from "@/utils/url";
 import { fetchWebpage, getCurrentVideoId, fetchYouTubeTranscript } from "@/utils/content";
+import { ModelLabel } from "@/components/ModelLabel";
 import { PathSelector } from '@/components/PathSelector';
 import { cleanContent } from "@/utils/content";
+import { useSettings } from "@/hooks/useSettings";
+import { Loader } from "@/components/Loader";
 
 export const Home = () =>  {
+    const { settings, isLoading, error } = useSettings();
     const [selectedPromptContent, setSelectedPromptContent] = useState<string>('');
     const [, setLocation] = useLocation();
     const { setContent, setPrompt, enableChunking, setEnableChunking } = useSummaryStore();
     const [selectedPath, setSelectedPath] = useState<string>('');
     const transcriptAreaRef = useRef<HTMLTextAreaElement>(null);
+
+    if (isLoading) {
+        return <Loader />;
+    }
+
+    if (error) {
+        return <div className="error-text">{error}</div>;
+    }
 
     const handlePromptChange = (content: string, selector: string | undefined) => {
         setSelectedPromptContent(content);
@@ -120,17 +132,27 @@ export const Home = () =>  {
 
     return (
         <>
-            <PromptSelector onSelect={handlePromptChange}/>
-            <textarea
-                id="system-prompt"
-                rows={6}
-                cols={50}
-                placeholder="System Prompt"
-                value={selectedPromptContent}
-                onChange={(e) => handlePromptChange(e.target.value, selectedPath)}
+            <ModelLabel
+                provider={settings?.provider || ''}
+                model={settings?.model || ''}
             />
-            <input type="text" id="use-selector" placeholder="Target element" value={selectedPath || ''} onChange={(e) => setSelectedPath(e.target.value)} />
-            <div className="summarize-controls">
+            <PromptSelector onSelect={handlePromptChange}/>
+            <div className="form-group">
+                <label>System Prompt</label>
+                <textarea
+                    id="system-prompt"
+                    rows={6}
+                    cols={50}
+                    placeholder="System Prompt"
+                    value={selectedPromptContent}
+                    onChange={(e) => handlePromptChange(e.target.value, selectedPath)}
+                />
+            </div>
+            <div className="form-group">
+                <label>Target element</label>
+                <input type="text" id="use-selector" placeholder="Target element" value={selectedPath || ''} onChange={(e) => setSelectedPath(e.target.value)} />
+            </div>
+            <div className="form-group--center">
                 <button
                     id="summarize-transcript"
                     className="btn ai-btn"
@@ -144,13 +166,15 @@ export const Home = () =>  {
                     </label>
                 </div>
             </div>
-            <textarea
-                ref={transcriptAreaRef}
-                id="transcript-area"
-                rows={5}
-                cols={50}
-                placeholder="Content will appear here..."
-            />
+            <div className="form-group">x
+                <textarea
+                    ref={transcriptAreaRef}
+                    id="transcript-area"
+                    rows={5}
+                    cols={50}
+                    placeholder="Content will appear here..."
+                />
+            </div>
             <div className="button-group source-buttons">
                 <PathSelector onPathSelected={handlePathSelected} />
                 <button id="fetch-webpage" className="btn" onClick={handleFetchWebpage}>
