@@ -3,9 +3,9 @@ import { CONSTANTS } from '@/constants.ts';
 import { storage } from "@/utils/storage";
 
 export const api = {
-    async getApiUrl() {
-        const { apiUrl } = await storage.sync.get("apiUrl");
-        return apiUrl || CONSTANTS.API.DEFAULT_API_URL;
+    async getApiKey() {
+        const { apiKey } = await storage.sync.get("apiKey");
+        return apiKey;
     },
 
     async getAiSettings() {
