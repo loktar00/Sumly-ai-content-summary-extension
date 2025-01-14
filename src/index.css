@@ -373,7 +373,6 @@ select:hover,
 /* Markdown Styles */
 .markdown-body {
   text-align: left;
-  padding: var(--spacing-lg);
   line-height: 1.7;
   width: calc(100% - var(--spacing-lg) * 2);
   font-size: var(--font-size-md);
@@ -397,6 +396,28 @@ select:hover,
   font-size: var(--font-size-lg);
   margin-top: var(--spacing-lg);
   font-weight: var(--font-weight-medium);
+}
+
+.markdown-body h4 {
+  font-size: var(--font-size-md);
+  margin-top: var(--spacing-lg);
+  font-weight: var(--font-weight-medium);
+}
+
+.markdown-body h5 {
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-lg);
+  font-weight: var(--font-weight-medium);
+}
+
+.markdown-body a {
+  color: var(--secondary-color);
+  text-decoration: underline;
+  font-weight: var(--font-weight-medium);
+}
+
+.markdown-body a:hover {
+  color: var(--text-color);
 }
 
 .markdown-body p {

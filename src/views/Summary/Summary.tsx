@@ -73,11 +73,16 @@ export const Summary = () => {
 
             setTimeout(() => scrollToBottom(), 100); // Force scroll after adding user message
 
+            // Initial token estimate
             setTokenCount(updateTokenCount(newMessages));
 
             // Create update handler for streaming response
-            const handleUpdate = (streamContent: string) => {
+            const handleUpdate = (streamContent: string, tokenCount?: number) => {
                 setStreamingMessage(streamContent);
+                // Only update token count if we get a real count from the API
+                if (tokenCount) {
+                    setTokenCount(tokenCount);
+                }
             };
 
             // Get streaming response with conversation history
@@ -90,10 +95,10 @@ export const Summary = () => {
                 abortControllerRef.current
             );
 
-            // Add completed response to messages and update token count
+            // Add completed response to messages
             setMessages(prev => {
                 const updatedMessages: Message[] = [...prev, { role: 'assistant', content: response }];
-                setTokenCount(updateTokenCount(updatedMessages));
+                // setTokenCount(updateTokenCount(updatedMessages));
                 setTimeout(() => scrollToBottom(), 100); // Force scroll after AI response with slight delay
                 return updatedMessages;
             });

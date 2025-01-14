@@ -3,11 +3,39 @@ import { ModelConfig } from '@/Configs/ModelProviders';
 
 // Simple markdown parser
 export const markdownToHtml = (markdown: string) => {
-    return markdown
-        // Headers
+    // Pre-process ordered lists to maintain numbers
+    const processedMarkdown = markdown.replace(
+        /^( *)\d+\. (.*?)$/gm,
+        (match, indent, content, _, str) => {
+            // Find all list items at this indentation level
+            const lines = str.split('\n');
+            let number = 1;
+            const currentLine = Math.max(0, lines.findIndex((line: string) => line === match));
+
+            // Look backwards to find start of list
+            for (let i = currentLine - 1; i >= 0; i--) {
+                const prevLine = lines[i];
+                if (prevLine.match(new RegExp(`^${indent}\\d+\\. `))) {
+                    number++;
+                } else if (!prevLine.match(/^\s*$/)) {
+                    break;
+                }
+            }
+
+            return `${indent}__ordered_list_${number}__ ${content}`;
+        }
+    );
+
+    let html = processedMarkdown
+        // Headers (h1 through h5)
+        .replace(/^##### (.*$)/gm, '<h5>$1</h5>')
+        .replace(/^#### (.*$)/gm, '<h4>$1</h4>')
         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
         .replace(/^## (.*$)/gm, '<h2>$1</h2>')
         .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+
+        // Links - [text](url)
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
 
         // Bold
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -15,20 +43,26 @@ export const markdownToHtml = (markdown: string) => {
         // Italic
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
 
-        // Lists
-        .replace(/^\s*\n\*/gm, '<ul>\n*')
-        .replace(/^(\*.+)\s*\n([^*])/gm, '$1\n</ul>\n$2')
-        .replace(/^\*(.+)/gm, '<li>$1</li>')
+        // Nested unordered lists
+        .replace(/^( *)[-*+] (.*?)$/gm, (_, indent, content) => {
+            const level = indent.length;
+            if (level === 0) return `<ul><li>${content}</li>`;
+            return `${'<ul>'.repeat(Math.floor(level/2))}<li>${content}</li>`;
+        })
 
-        // Headings
-        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        // Ordered Lists with proper numbering
+        .replace(/^( *)__ordered_list_(\d+)__ (.*?)$/gm, (_, indent, num, content) => {
+            const level = indent.length;
+            const listStart = level === 0 ? '<ol>' : '<ol>'.repeat(Math.floor(level/2));
+            return `${listStart}<li value="${num}">${content}</li>`;
+        })
 
-        // Ordered Lists
-        .replace(/^\s*\n\d\./gm, '<ol>\n1.')
-        .replace(/^(\d\..+)\s*\n([^\d.])/gm, '$1\n</ol>\n$2')
-        .replace(/^\d\.(.+)/gm, '<li>$1</li>')
+        // Close lists
+        .replace(/^(.*?)(?=\n\s*[-*+]|\n\s*__ordered_list_|$)/gm, (match) => {
+            const ulCount = (match.match(/<ul>/g) || []).length;
+            const olCount = (match.match(/<ol>/g) || []).length;
+            return match + '</ul>'.repeat(ulCount) + '</ol>'.repeat(olCount);
+        })
 
         // Blockquotes
         .replace(/^>(.+)/gm, '<blockquote>$1</blockquote>')
@@ -40,19 +74,27 @@ export const markdownToHtml = (markdown: string) => {
         // Paragraphs
         .replace(/^\s*(\n)?(.+)/gm, function(m) {
             return /<(\/)?(h\d|ul|ol|li|blockquote|pre|code)/.test(m) ? m : '<p>'+m+'</p>';
-        })
+        });
+
+    // Clean up
+    html = html
+        .replace(/<(ul|ol)>\s*<\/(ul|ol)>/g, '')
+        .replace(/\n/g, '');
+
+    return html;
 };
 
 export async function handleStreamingResponse(
     settings: ModelConfig,
     prompt: string,
-    onUpdate: (content: string) => void,
+    onUpdate: (content: string, tokenCount?: number) => void,
     conversationHistory: { role: string; content: string }[] = [],
     systemPromptOverride: string | null = null,
     abortController?: AbortController
 ) {
-
     let accumulatedResponse = '';
+    let totalTokens = 0;
+
     try {
         const controller = abortController || new AbortController();
         const messages = [
@@ -106,9 +148,17 @@ export async function handleStreamingResponse(
                         try {
                             const parsed = JSON.parse(data);
                             const content = parsed.choices[0]?.delta?.content;
+
+                            // Use Deepseek's token count when available
+                            const tokenCount = parsed.usage?.total_tokens;
+                            console.log('tokenCount', tokenCount);
+
                             if (content) {
                                 accumulatedResponse += content;
-                                onUpdate(accumulatedResponse);
+                                onUpdate(accumulatedResponse, tokenCount);
+                            } else if (tokenCount) {
+                                // Update token count even if no new content
+                                onUpdate(accumulatedResponse, tokenCount);
                             }
                         } catch (e) {
                             console.error('Error parsing SSE data:', e);
@@ -159,7 +209,8 @@ export async function handleStreamingResponse(
                         const data = JSON.parse(line);
                         if (data.message?.content) {
                             accumulatedResponse += data.message.content;
-                            onUpdate(markdownToHtml(accumulatedResponse));
+                            totalTokens = estimateTokens(accumulatedResponse);
+                            onUpdate(accumulatedResponse, totalTokens);
                         }
                     } catch (e) {
                         console.error('Error parsing JSON:', e);

@@ -4,6 +4,6 @@ import { Message as MessageType } from './types';
 
 export const Message = memo(({ role, content }: MessageType) => (
     <div className={`message ${role}-message`}>
-        <div dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }} />
+        <div className="markdown-body" dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }} />
     </div>
 ));
