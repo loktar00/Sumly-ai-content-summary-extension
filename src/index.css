@@ -2,6 +2,7 @@
   /* Colors */
   --primary-color: #A700FF;
   --secondary-color: #FF007a;
+  --tertiary-color: #00FFFF;
   --background-color: #110020;
   --header-text-color: #fff;
   --text-color: #fff;
@@ -38,7 +39,7 @@
   --transition-speed: 0.2s;
   --sidebar-width: 200px;
   --container-width: 300px;
-  --chat-max-height: 70vh;
+  --chat-max-height: 65vh;
 }
 
 /* Base Styles */
@@ -56,7 +57,6 @@ body {
 
 /* Form Elements */
 textarea, select, input {
-  width: calc(100% - var(--spacing-lg));
   padding: var(--spacing-md);
   border: 2px solid var(--border-color);
   border-radius: var(--border-radius);
@@ -202,19 +202,17 @@ h3 {
 
 /* Button Styles */
 .btn {
-  display: block;;
+  display: block;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
   padding: var(--spacing-md) var(--spacing-lg);
   border: 2px solid var(--button-color);
   background-color: transparent;
   border-radius: var(--border-radius);
-  font-size: var(--font-size-sm);
   color: var(--button-text-color);
   cursor: pointer;
   transition: all var(--transition-speed);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-weight: var(--font-weight-semibold);
-  position: relative;
-  overflow: hidden;
 }
 
 select:hover,
@@ -260,7 +258,6 @@ select:hover,
 
 .chat-container {
   width: 100%;
-  display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
 }
@@ -377,7 +374,6 @@ select:hover,
 /* Markdown Styles */
 .markdown-body {
   text-align: left;
-  padding: var(--spacing-lg);
   line-height: 1.7;
   width: calc(100% - var(--spacing-lg) * 2);
   font-size: var(--font-size-md);
@@ -401,6 +397,28 @@ select:hover,
   font-size: var(--font-size-lg);
   margin-top: var(--spacing-lg);
   font-weight: var(--font-weight-medium);
+}
+
+.markdown-body h4 {
+  font-size: var(--font-size-md);
+  margin-top: var(--spacing-lg);
+  font-weight: var(--font-weight-medium);
+}
+
+.markdown-body h5 {
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-lg);
+  font-weight: var(--font-weight-medium);
+}
+
+.markdown-body a {
+  color: var(--tertiary-color);
+  text-decoration: underline;
+  font-weight: var(--font-weight-medium);
+}
+
+.markdown-body a:hover {
+  color: var(--text-color);
 }
 
 .markdown-body p {
@@ -560,7 +578,6 @@ hr {
   background-color: var(--message-bg-ai);
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--border-radius);
-  margin-bottom: var(--spacing-md);
   border: 1px solid var(--ai-accent-color);
   font-size: var(--font-size-sm);
   text-align: center;
@@ -681,10 +698,16 @@ select option {
   margin: 0 auto;
 }
 
-.form-group {
+.form-group,
+.form-group--center {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.form-group--center {
+  align-items: center;
 }
 
 .form-group label {
@@ -696,29 +719,6 @@ select option {
   font-size: var(--font-size-sm);
   color: var(--text-color);
   opacity: 0.8;
-}
-
-.default-btn {
-  background-color: var(--ai-accent-color);
-  border-color: var(--ai-accent-color);
-}
-
-.default-btn.is-default {
-  opacity: 0.7;
-  cursor: default;
-}
-
-.default-btn.is-default:hover {
-  background-color: var(--ai-accent-color);
-  border-color: var(--ai-accent-color);
-}
-
-.summarize-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-md);
-  width: 100%;
 }
 
 .chunk-control {

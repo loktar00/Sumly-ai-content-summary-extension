@@ -1,20 +1,21 @@
 // API interactions
-import { CONSTANTS } from '@/constants.ts';
 import { storage } from "@/utils/storage";
+import { modelProviders } from '@/Configs/ModelProviders';
 
 export const api = {
-    async getApiUrl() {
-        const { apiUrl } = await storage.sync.get("apiUrl");
-        return apiUrl || CONSTANTS.API.DEFAULT_API_URL;
-    },
-
-    async getAiSettings() {
-        const settings = await storage.sync.get(['aiUrl', 'aiModel', 'numCtx']);
+    async getApiSettings() {
+        const settings = await storage.sync.get(['selectedProvider', 'providerConfigs']);
+        const provider = settings.selectedProvider || 'Ollama';
+        const configs = settings.providerConfigs || modelProviders;
 
         return {
-            url: settings.aiUrl || CONSTANTS.API.DEFAULT_AI_URL,
-            model: settings.aiModel || '',
-            numCtx: settings.numCtx || CONSTANTS.API.DEFAULT_NUM_CTX
+            provider,
+            ...configs[provider]
         };
+    },
+
+    async getApiKey() {
+        const settings = await this.getApiSettings();
+        return settings.api_key;
     }
 };

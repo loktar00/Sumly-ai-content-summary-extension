@@ -1,12 +1,41 @@
 import { CONSTANTS } from '@/constants';
+import { ModelConfig } from '@/Configs/ModelProviders';
 
 // Simple markdown parser
 export const markdownToHtml = (markdown: string) => {
-    return markdown
-        // Headers
+    // Pre-process ordered lists to maintain numbers
+    const processedMarkdown = markdown.replace(
+        /^( *)\d+\. (.*?)$/gm,
+        (match, indent, content, _, str) => {
+            // Find all list items at this indentation level
+            const lines = str.split('\n');
+            let number = 1;
+            const currentLine = Math.max(0, lines.findIndex((line: string) => line === match));
+
+            // Look backwards to find start of list
+            for (let i = currentLine - 1; i >= 0; i--) {
+                const prevLine = lines[i];
+                if (prevLine.match(new RegExp(`^${indent}\\d+\\. `))) {
+                    number++;
+                } else if (!prevLine.match(/^\s*$/)) {
+                    break;
+                }
+            }
+
+            return `${indent}__ordered_list_${number}__ ${content}`;
+        }
+    );
+
+    let html = processedMarkdown
+        // Headers (h1 through h5)
+        .replace(/^##### (.*$)/gm, '<h5>$1</h5>')
+        .replace(/^#### (.*$)/gm, '<h4>$1</h4>')
         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
         .replace(/^## (.*$)/gm, '<h2>$1</h2>')
         .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+
+        // Links - [text](url)
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
 
         // Bold
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -14,20 +43,26 @@ export const markdownToHtml = (markdown: string) => {
         // Italic
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
 
-        // Lists
-        .replace(/^\s*\n\*/gm, '<ul>\n*')
-        .replace(/^(\*.+)\s*\n([^*])/gm, '$1\n</ul>\n$2')
-        .replace(/^\*(.+)/gm, '<li>$1</li>')
+        // Nested unordered lists
+        .replace(/^( *)[-*+] (.*?)$/gm, (_, indent, content) => {
+            const level = indent.length;
+            if (level === 0) return `<ul><li>${content}</li>`;
+            return `${'<ul>'.repeat(Math.floor(level/2))}<li>${content}</li>`;
+        })
 
-        // Headings
-        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        // Ordered Lists with proper numbering
+        .replace(/^( *)__ordered_list_(\d+)__ (.*?)$/gm, (_, indent, num, content) => {
+            const level = indent.length;
+            const listStart = level === 0 ? '<ol>' : '<ol>'.repeat(Math.floor(level/2));
+            return `${listStart}<li value="${num}">${content}</li>`;
+        })
 
-        // Ordered Lists
-        .replace(/^\s*\n\d\./gm, '<ol>\n1.')
-        .replace(/^(\d\..+)\s*\n([^\d.])/gm, '$1\n</ol>\n$2')
-        .replace(/^\d\.(.+)/gm, '<li>$1</li>')
+        // Close lists
+        .replace(/^(.*?)(?=\n\s*[-*+]|\n\s*__ordered_list_|$)/gm, (match) => {
+            const ulCount = (match.match(/<ul>/g) || []).length;
+            const olCount = (match.match(/<ol>/g) || []).length;
+            return match + '</ul>'.repeat(ulCount) + '</ol>'.repeat(olCount);
+        })
 
         // Blockquotes
         .replace(/^>(.+)/gm, '<blockquote>$1</blockquote>')
@@ -39,60 +74,63 @@ export const markdownToHtml = (markdown: string) => {
         // Paragraphs
         .replace(/^\s*(\n)?(.+)/gm, function(m) {
             return /<(\/)?(h\d|ul|ol|li|blockquote|pre|code)/.test(m) ? m : '<p>'+m+'</p>';
-        })
+        });
+
+    // Clean up
+    html = html
+        .replace(/<(ul|ol)>\s*<\/(ul|ol)>/g, '')
+        .replace(/\n/g, '');
+
+    return html;
 };
 
 export async function handleStreamingResponse(
-    settings: { url: string; model: string; numCtx: number },
+    settings: ModelConfig,
     prompt: string,
-    onUpdate: (content: string) => void,
+    onUpdate: (content: string, tokenCount?: number) => void,
     conversationHistory: { role: string; content: string }[] = [],
     systemPromptOverride: string | null = null,
     abortController?: AbortController
 ) {
-    try {
-        const endpoint = `${settings.url}/api/chat`;
-        const controller = abortController || new AbortController();
+    let accumulatedResponse = '';
+    let totalTokens = 0;
 
-        // Include conversation history in messages
+    try {
+        const controller = abortController || new AbortController();
         const messages = [
             { role: 'system', content: systemPromptOverride },
             ...conversationHistory,
             { role: 'user', content: prompt }
-        ].filter(msg => msg.content != null); // Filter out null system prompt if not provided
+        ].filter(msg => msg.content != null);
 
-        const requestBody = {
-            model: settings.model,
-            messages: messages,
-            options: {
-                temperature: 0.8,
-                num_ctx: settings.numCtx,
-            },
-            stream: true
-        };
+        if (settings.provider === 'Deepseek') {
+            const response = await fetch(`${settings.url}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${settings.api_key}`
+                },
+                body: JSON.stringify({
+                    model: settings.model,
+                    messages: messages,
+                    stream: true,
+                    options: {
+                        temperature: settings.temperature,
+                        max_tokens: settings.max_tokens
+                    }
+                }),
+                signal: controller.signal
+            });
 
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
-            signal: controller.signal
-        });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Deepseek API request failed (${response.status}): ${errorText || response.statusText}`);
+            }
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`API request failed (${response.status}): ${errorText || response.statusText}`);
-        }
+            const reader = response.body?.getReader();
 
-        const reader = response.body?.getReader();
-        let accumulatedResponse = '';
-
-        try {
             while (true) {
-                if (!reader) {
-                    break;
-                }
-
-                const { done, value } = await reader.read();
+                const { done, value } = await reader!.read();
                 if (done) {
                     break;
                 }
@@ -101,28 +139,92 @@ export async function handleStreamingResponse(
                 const lines = chunk.split('\n');
 
                 for (const line of lines) {
-                    if (!line.trim()) continue;
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') {
+                            continue;
+                        }
+
+                        try {
+                            const parsed = JSON.parse(data);
+                            const content = parsed.choices[0]?.delta?.content;
+
+                            // Use Deepseek's token count when available
+                            const tokenCount = parsed.usage?.total_tokens;
+                            console.log('tokenCount', tokenCount);
+
+                            if (content) {
+                                accumulatedResponse += content;
+                                onUpdate(accumulatedResponse, tokenCount);
+                            } else if (tokenCount) {
+                                // Update token count even if no new content
+                                onUpdate(accumulatedResponse, tokenCount);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing SSE data:', e);
+                        }
+                    }
+                }
+            }
+        } else {
+            // Original Ollama implementation
+            const response = await fetch(`${settings.url}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: settings.model,
+                    messages: messages,
+                    options: {
+                        temperature: settings.temperature,
+                        num_ctx: settings.num_ctx,
+                    },
+                    stream: true
+                }),
+                signal: controller.signal
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API request failed (${response.status}): ${errorText || response.statusText}`);
+            }
+
+            const reader = response.body?.getReader();
+
+            while (true) {
+                const { done, value } = await reader!.read();
+
+                if (done) {
+                    break;
+                }
+
+                const chunk = new TextDecoder().decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (!line.trim()) {
+                        continue;
+                    }
 
                     try {
                         const data = JSON.parse(line);
                         if (data.message?.content) {
                             accumulatedResponse += data.message.content;
-                            onUpdate(markdownToHtml(accumulatedResponse));
+                            totalTokens = estimateTokens(accumulatedResponse);
+                            onUpdate(accumulatedResponse, totalTokens);
                         }
                     } catch (e) {
                         console.error('Error parsing JSON:', e);
                     }
                 }
             }
-        } catch (error) {
-            console.error('Error in handleStreamingResponse:', error);
-            throw error;
         }
 
         return accumulatedResponse;
     } catch (error) {
-        console.error('Error in handleStreamingResponse:', error);
-        throw error;
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw error;
+        }
+        throw new Error(`API request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
 
@@ -153,7 +255,7 @@ export function estimateTokens(text: string) {
     return Math.max(1, estimate);
 }
 
-export function calculateConversationTokens(history: any[]) {
+export function calculateConversationTokens(history: { role: string; content: string }[]) {
     // Add extra tokens for message formatting and role indicators
     const formatTokens = history.length * 4; // ~4 tokens per message for format
 
@@ -165,8 +267,8 @@ export function calculateConversationTokens(history: any[]) {
     return formatTokens + contentTokens;
 }
 
-export function updateTokenCount(conversationHistory: any[]) {
-    const totalTokens = parseInt(calculateConversationTokens(conversationHistory), 10);
+export function updateTokenCount(conversationHistory: { role: string; content: string }[]) {
+    const totalTokens = calculateConversationTokens(conversationHistory);
     return totalTokens;
 }
 
@@ -179,7 +281,7 @@ interface ChunkProgress {
 export async function chunkAndSummarize(
     content: string,
     contextSize: number,
-    settings: { url: string; model: string; numCtx: number },
+    settings: ModelConfig,
     systemPrompt: string,
     onProgressUpdate?: (progress: ChunkProgress) => void,
     onStreamingUpdate?: (content: string) => void,

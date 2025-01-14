@@ -15,6 +15,7 @@
         "https://*.youtube.com/*",
         "http://*:11434/*",
         "https://*:11434/*",
+        "https://api.deepseek.com/*",
         "<all_urls>"
     ],
     "action": {
@@ -44,7 +45,7 @@
         "matches": ["<all_urls>"]
     }],
     "content_security_policy": {
-        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.youtube.com http://*:11434 https://*:11434;"
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://*.youtube.com https://www.youtube.com http://*:11434 https://*:11434 https://api.deepseek.com;"
     },
     "background": {
         "service_worker": "background.js"

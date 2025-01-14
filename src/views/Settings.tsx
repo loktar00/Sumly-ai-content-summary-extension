@@ -1,62 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'wouter';
-import { api } from '@/api/api';
-import { storage } from '@/utils/storage';
-import { CONSTANTS } from '@/constants';
-import { formatSize } from '@/utils/chat';
+import { ModelConfig, modelProviders } from '@/Configs/ModelProviders';
+import { Loader } from '@/components/Loader';
+import { useSettings } from '@/hooks/useSettings';
 
 export const Settings = () => {
-    const [aiUrl, setAiUrl] = useState(CONSTANTS.API.DEFAULT_AI_URL);
-    const [aiModel, setAiModel] = useState('');
-    const [numCtx, setNumCtx] = useState(CONSTANTS.API.DEFAULT_NUM_CTX);
-    const [models, setModels] = useState<Array<{ name: string; size: number }>>([]);
+    const {
+        settings,
+        isLoading: settingsLoading,
+        error: settingsError,
+        saveSettings,
+        getProviderSettings,
+        selectedProvider,
+        setSelectedProvider
+    } = useSettings();
 
-    useEffect(() => {
-        const initializeSettings = async () => {
-            const settings = await api.getAiSettings();
-            setAiUrl(settings.url as string);
-            setNumCtx(settings.numCtx as number);
+    const [availableModels, setAvailableModels] = useState<string[]>([]);
 
-            try {
-                const response = await fetch(`${settings.url}/api/tags`);
-                if (!response.ok) throw new Error('Failed to fetch models');
-
-                const data = await response.json();
-                const availableModels = data.models || [];
-                setModels(availableModels);
-
-                // Set the model after we have the list
-                setAiModel(settings.model as string);
-            } catch (error) {
-                console.error('Error fetching models:', error);
+    const handleProviderChange = (provider: string) => {
+        setSelectedProvider(provider);
+        if (provider === 'Ollama') {
+            const providerSettings = getProviderSettings(provider);
+            if (providerSettings.model_selection) {
+                fetchModelsForProvider(providerSettings);
             }
-        };
+        } else {
+            setAvailableModels([]);
+        }
+    };
 
-        initializeSettings();
-    }, []);
+    const handleConfigChange = (field: keyof ModelConfig, value: string | number) => {
+        if (!settings) return;
 
-    const handleFetchModels = async () => {
+        saveSettings(selectedProvider, {
+            ...settings,
+            [field]: value
+        });
+    };
+
+    const fetchModelsForProvider = async (provider: ModelConfig) => {
         try {
-            const response = await fetch(`${aiUrl}/api/tags`);
+            const response = await fetch(`${provider.url}/api/tags`);
             if (!response.ok) throw new Error('Failed to fetch models');
 
             const data = await response.json();
-            const availableModels = data.models || [];
-            setModels(availableModels);
+            const modelNames = data.models.map((model: { name: string }) => model.name);
+            setAvailableModels(modelNames);
         } catch (error) {
             console.error('Error fetching models:', error);
+            setAvailableModels([]);
         }
     };
 
     const handleSave = async () => {
-        await storage.sync.set({
-            aiUrl,
-            aiModel,
-            numCtx: parseInt(numCtx.toString())
-        });
-        handleFetchModels();
+        const currentConfig = getProviderSettings(selectedProvider);
+        await saveSettings(selectedProvider, currentConfig);
         alert('Settings saved successfully!');
     };
+
+    if (settingsLoading) {
+        return <Loader />;
+    }
+    if (settingsError) {
+        return <div className="error-text">{settingsError}</div>;
+    }
 
     return (
         <div className="settings-content">
@@ -65,54 +72,110 @@ export const Settings = () => {
             </Link>
             <div className="settings-form">
                 <div className="form-group">
-                    <label htmlFor="ai-url">Ollama Server URL:</label>
-                    <input
-                        type="text"
-                        id="ai-url"
-                        value={aiUrl}
-                        onChange={(e) => setAiUrl(e.target.value)}
-                        placeholder="http://localhost:11434"
-                    />
-                </div>
-
-                <div className="form-group">
-                    <label htmlFor="ai-model">AI Model:</label>
+                    <label>Provider:</label>
                     <select
-                        id="ai-model"
-                        value={aiModel}
-                        onChange={(e) => setAiModel(e.target.value)}
+                        value={selectedProvider}
+                        onChange={(e) => handleProviderChange(e.target.value)}
                     >
-                        {models.map(model => (
-                            <option key={model.name} value={model.name}>
-                                {model.name} ({formatSize(model.size)})
+                        {Object.keys(modelProviders).map(provider => (
+                            <option key={provider} value={provider}>
+                                {provider}
                             </option>
                         ))}
                     </select>
-                    <button onClick={handleFetchModels} className="btn">
-                        Fetch Available Models
-                    </button>
                 </div>
 
                 <div className="form-group">
-                    <label htmlFor="num-ctx">Context Window Size:</label>
+                    <label>Server URL:</label>
                     <input
-                        type="number"
-                        id="num-ctx"
-                        value={numCtx}
-                        onChange={(e) => setNumCtx(parseInt(e.target.value))}
-                        min="1024"
-                        step="512"
+                        type="text"
+                        value={settings?.url}
+                        onChange={(e) => handleConfigChange('url', e.target.value)}
                     />
-                    <div className="help-text">
-                        Larger values allow for longer conversations but use more memory
-                    </div>
                 </div>
 
-                <div className="button-group">
-                    <button onClick={handleSave} className="btn">
-                        Save Settings
-                    </button>
+                {settings?.api_key !== undefined && (
+                    <div className="form-group">
+                        <label>API Key:</label>
+                        <input
+                            type="password"
+                            value={settings?.api_key}
+                            onChange={(e) => handleConfigChange('api_key', e.target.value)}
+                        />
+                    </div>
+                )}
+
+                <div className="form-group">
+                    <label>Model:</label>
+                    {settings?.model_selection ? (
+                        <>
+                            <select
+                                value={settings?.model}
+                                onChange={(e) => handleConfigChange('model', e.target.value)}
+                            >
+                                <option value="">Select a model...</option>
+                                {availableModels.map(model => (
+                                    <option key={model} value={model}>{model}</option>
+                                ))}
+                            </select>
+                            <button
+                                className="btn"
+                                onClick={() => fetchModelsForProvider(getProviderSettings(selectedProvider))}
+                            >
+                                Refresh Models
+                            </button>
+                        </>
+                    ) : (
+                        <input
+                            type="text"
+                            value={settings?.model}
+                            readOnly
+                        />
+                    )}
                 </div>
+
+                {settings?.temperature !== undefined && (
+                    <div className="form-group">
+                        <label>Temperature:</label>
+                        <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="2"
+                            value={settings?.temperature}
+                            onChange={(e) => handleConfigChange('temperature', Number(e.target.value))}
+                        />
+                    </div>
+                )}
+
+                {settings?.num_ctx !== undefined && (
+                    <div className="form-group">
+                        <label>Context Window:</label>
+                        <input
+                            type="number"
+                            value={settings?.num_ctx}
+                            onChange={(e) => handleConfigChange('num_ctx', Number(e.target.value))}
+                        />
+                    </div>
+                )}
+
+                {settings?.max_tokens !== undefined && (
+                    <div className="form-group">
+                        <label>Max Return Tokens:</label>
+                        <input
+                            type="number"
+                            value={settings?.max_tokens}
+                            min={1}
+                            max={8000}
+                            onChange={(e) => handleConfigChange('max_tokens', Number(e.target.value))}
+                        />
+                    </div>
+                )}
+            </div>
+            <div className="form-group--center">
+                <button onClick={handleSave} className="btn ai-btn">
+                    Save Settings
+                </button>
             </div>
         </div>
     );

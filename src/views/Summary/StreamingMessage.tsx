@@ -7,7 +7,7 @@ interface StreamingMessageProps {
 
 export const StreamingMessage = memo(({ content }: StreamingMessageProps) => (
     <div className="message assistant-message">
-        <div dangerouslySetInnerHTML={{
+        <div className="markdown-body" dangerouslySetInnerHTML={{
             __html: markdownToHtml(content)
         }} />
     </div>
