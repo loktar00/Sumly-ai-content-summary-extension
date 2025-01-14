@@ -2,6 +2,7 @@
   /* Colors */
   --primary-color: #A700FF;
   --secondary-color: #FF007a;
+  --tertiary-color: #00FFFF;
   --background-color: #110020;
   --header-text-color: #fff;
   --text-color: #fff;
@@ -411,7 +412,7 @@ select:hover,
 }
 
 .markdown-body a {
-  color: var(--secondary-color);
+  color: var(--tertiary-color);
   text-decoration: underline;
   font-weight: var(--font-weight-medium);
 }

@@ -159,12 +159,14 @@ export const Home = () =>  {
                     onClick={handleSummarize}>
                     Execute Prompt
                 </button>
-                <div className="chunk-control">
-                    <label>
-                        <input type="checkbox" id="enable-chunking" defaultChecked={enableChunking} onChange={handleChunkSettingChange} />
-                        <span>Auto-chunk large content</span>
-                    </label>
-                </div>
+                {settings?.provider === 'Ollama' && (
+                    <div className="chunk-control">
+                        <label>
+                            <input type="checkbox" id="enable-chunking" defaultChecked={enableChunking} onChange={handleChunkSettingChange} />
+                            <span>Auto-chunk large content</span>
+                        </label>
+                    </div>
+                )}
             </div>
             <div className="form-group">x
                 <textarea
